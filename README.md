@@ -4,8 +4,8 @@
 <div style="display:flex; flex-direction:row;">
     <h4 class="heading-element" dir="auto">백엔드 / BackEnd</h4>
     <img src="https://img.shields.io/badge/Java-007396?style=flat-square&logo=Java&logoColor=white" style="max-width: 100%;">
-    <img src="https://img.shields.io/badge/Spring-6DB33F?style=for-the-badge&logo=spring&logoColor=white"> 
-    <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring boot&logoColor=white"> 
+    <img src="https://img.shields.io/badge/Spring-6DB33F?style=for-the-badge&logo=spring&logoColor=white" style="max-width: 100%;"> 
+    <img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=spring boot&logoColor=white" style="max-width: 100%;"> 
     <br>
     <h4 class="heading-element" dir="auto">프론트엔드 / FrontEnd</h4>
     <img src="https://img.shields.io/badge/html5-E34F26?style=flat-square&logo=html5&logoColor=white"> 
