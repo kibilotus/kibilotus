@@ -1,0 +1,78 @@
+# cp config.example.yaml config.yaml 후 수정
+timezone: Asia/Seoul
+calendar_id: "your-calendar-id@group.calendar.google.com"
+service_account_file: service-account.json
+db_path: alimtalk.db
+
+poll_interval_seconds: 300   # 5분마다 캘린더 확인
+lookahead_days: 8            # 앞으로 8일 이내 일정만 조회
+max_attempts: 3              # 발송 실패 시 재시도 포함 최대 시도 횟수 (폴링 주기마다 1회)
+dry_run: true                # true: 실제 발송 없이 로그만 출력
+
+studio_name: 스튜디오어디
+default_product: "스튜디오어디 - A. 낮 패키지 (11-17시)"  # 일정에 '상품:' 이 없을 때 사용
+
+# 일정 설명에서 '키워드: 값' 형태로 찾을 키워드 (생략 시 기본값 사용)
+parser:
+  name_keywords: [이름, 예약자, 성함]
+  phone_keywords: [연락처, 전화번호, 전화, 휴대폰]
+  product_keywords: [상품, 패키지]
+
+# 발송 규칙
+#   trigger: created(일정 등록 시각) | start(이용 시작) | end(이용 종료)
+#   offset_minutes: 기준 시각 대비 분 (음수 = 이전)
+#   day_before_at: "HH:MM" 지정 시 기준일 전날 해당 시각에 발송
+# 공통: 발송 시점이 지났더라도 이용 종료 전이면 곧바로 발송됩니다.
+rules:
+  - id: booking_confirmed
+    trigger: created
+    offset_minutes: 0
+    template: booking_confirmed
+  - id: day_before
+    trigger: start
+    day_before_at: "18:00"
+    template: day_before
+  - id: before_end
+    trigger: end
+    offset_minutes: -180        # 이용 종료 3시간 전
+    template: before_end
+
+# 알림톡 템플릿: text 는 카카오 검수 승인된 문구와 '완전히 동일'해야 합니다.
+# 사용 가능 변수: #{이름} #{상품} #{이용일시} #{스튜디오}
+templates:
+  booking_confirmed:
+    solapi_template_id: "KA01TP_REPLACE_ME"
+    text: |-
+      [#{스튜디오}] 예약완료 안내
+
+      #{이름}님, 예약에 감사드리며 안내사항 전달드립니다.
+
+      ■ 예약 상품: #{상품}
+      ■ 이용 일시: #{이용일시}
+
+      ▪시설보호를 위하여 청소보증금 5만원을 받고있습니다. 3333-18-8825963(카카오뱅크, 서나연) 입금부탁드리며, 청소보증금 금액은 퇴실 후 청소상태 확인 후 환급드립니다.
+
+      ▪공간 이용안내 및 이용 시 주의사항은 전날 발송드리니 확인부탁드립니다.
+
+      ▪추가적인 문의사항은 하단의 네이버톡톡으로 부탁드립니다.
+  day_before:
+    solapi_template_id: "KA01TP_REPLACE_ME"
+    text: |-
+      [#{스튜디오}] 이용 안내
+
+      #{이름}님, 내일 이용 예정이신 예약 안내드립니다.
+
+      ■ 예약 상품: #{상품}
+      ■ 이용 일시: #{이용일시}
+
+      (공간 이용안내 및 주의사항을 입력하세요)
+  before_end:
+    solapi_template_id: "KA01TP_REPLACE_ME"
+    text: |-
+      [#{스튜디오}] 퇴실 안내
+
+      #{이름}님, 이용 종료 3시간 전 안내드립니다.
+
+      ■ 이용 일시: #{이용일시}
+
+      (퇴실 시 주의사항을 입력하세요)

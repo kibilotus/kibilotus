@@ -1,0 +1,5 @@
+__pycache__/
+*.db
+config.yaml
+service-account.json
+.venv/
