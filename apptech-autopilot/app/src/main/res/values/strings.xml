@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">앱테크 오토파일럿</string>
+    <string name="a11y_label">앱테크 오토파일럿 자동화</string>
+    <string name="a11y_description">토스 앱의 출석체크/포인트 미션을 자동으로 수행하기 위해 토스 화면의 버튼을 읽고 누릅니다. 토스 외의 앱 화면은 관찰하지 않습니다.</string>
+</resources>

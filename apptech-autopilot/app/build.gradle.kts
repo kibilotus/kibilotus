@@ -1,0 +1,37 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.kibilotus.apptech"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.kibilotus.apptech"
+        // takeScreenshot(30+), 안정적인 dispatchGesture 사용
+        minSdk = 30
+        targetSdk = 35
+        versionCode = 1
+        versionName = "0.1.0-stage1"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation(project(":core"))
+}
