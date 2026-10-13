@@ -1,0 +1,387 @@
+<title>스튜디오 알림톡 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 한 열 관리 화면 — 상단 연결 상태 → 탭(자동 메시지 / 발송 내역 / 확인 필요) → 목록과 편집 패널 */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --line:#dde3e0; --fg:#18201d; --muted:#5e6b66;
+  --accent:#1f6f5c; --accent-soft:#e1efea; --ok:#1f8a4c; --warn:#b26a00; --bad:#c2372f;
+  --ok-soft:#e3f4ea; --warn-soft:#fbf0dc; --bad-soft:#fbe6e4;
+  --kakao:#fee500; --kakao-bg:#bacee0; --bubble:#ffffff;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111614; --surface:#1a211e; --line:#2c3632; --fg:#e7eeeb; --muted:#9aa8a2;
+  --accent:#5cc4a6; --accent-soft:#1c3a32; --ok:#55c98a; --warn:#e3a54a; --bad:#ef7b72;
+  --ok-soft:#18342463; --warn-soft:#3a2c1463; --bad-soft:#3d1d1a80;
+  --kakao-bg:#2b3a48; --bubble:#25302c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#1a211e; --line:#2c3632; --fg:#e7eeeb; --muted:#9aa8a2;
+  --accent:#5cc4a6; --accent-soft:#1c3a32; --ok:#55c98a; --warn:#e3a54a; --bad:#ef7b72;
+  --ok-soft:#18342463; --warn-soft:#3a2c1463; --bad-soft:#3d1d1a80;
+  --kakao-bg:#2b3a48; --bubble:#25302c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55}
+.wrap{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:16px}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-size:20px;font-weight:700}
+h2{font-size:17px;font-weight:600}
+h3{font-size:14px;font-weight:600}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.demo{font-size:12px;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:6px 10px}
+
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px}
+.status{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.pill.ok{color:var(--ok);background:var(--ok-soft);border-color:transparent}
+.pill.warn{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.pill.bad{color:var(--bad);background:var(--bad-soft);border-color:transparent}
+.pill.off{color:var(--muted)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{appearance:none;border:0;background:none;font:inherit;font-weight:600;color:var(--muted);padding:10px 14px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--fg);border-color:var(--accent)}
+.badge{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:var(--bad);color:#fff;font-size:12px;text-align:center}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.rules{display:grid;gap:10px}
+.rule{display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:center;text-align:left;width:100%;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer}
+.rule:hover{border-color:var(--accent)}
+.rule[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.rule .when{font-size:13px;color:var(--muted)}
+.rule .meta{grid-column:2;grid-row:1 / span 2;display:grid;justify-items:end;gap:4px}
+.add{border-style:dashed;color:var(--muted);justify-content:center;display:flex}
+
+.editor{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:760px){.editor{grid-template-columns:1fr}}
+.section{display:grid;gap:12px;padding-block:16px;border-top:1px solid var(--line)}
+.section:first-of-type{border-top:0;padding-top:0}
+label.f{display:grid;gap:6px;font-size:13px;font-weight:600}
+select,input,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+textarea{min-height:240px;resize:vertical;line-height:1.6}
+select:focus,input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;font:inherit;font-size:13.5px;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.chip.var{font-family:var(--mono);font-size:12.5px;padding:4px 9px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row > input{width:84px}
+.row > select{width:auto}
+.summary{font-weight:600;color:var(--accent)}
+.hint{font-size:12.5px;color:var(--muted)}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{appearance:none;font:inherit;font-weight:600;font-size:14px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;font-weight:500}
+.switch input{appearance:none;width:38px;height:22px;border-radius:999px;background:var(--line);position:relative;padding:0;border:0;cursor:pointer;flex:none}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:left .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{left:19px}
+
+.phone{background:var(--kakao-bg);border-radius:14px;padding:16px;display:grid;gap:8px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+.phone .from{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;color:var(--fg)}
+.avatar{width:32px;height:32px;border-radius:11px;background:var(--surface);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--accent)}
+.bubble{background:var(--bubble);border-radius:4px 14px 14px 14px;overflow:hidden;max-width:300px}
+.bubble .head{background:var(--kakao);color:#1d1d1d;font-weight:700;font-size:13px;padding:9px 12px}
+.bubble .body{padding:12px;font-size:13.5px;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;color:var(--fg)}
+.bubble .body mark{background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:0 2px}
+.bubble .body .missing{background:var(--bad-soft);color:var(--bad)}
+.phone .time{font-size:11px;color:var(--muted)}
+
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12.5px;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td .err{display:block;font-size:12px;color:var(--bad)}
+@media (max-width:620px){
+  thead{display:none}
+  table,tbody,tr,td{display:block}
+  tr{padding:12px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:2px 12px}
+  td{border:0;padding:0}
+  td[data-k="msg"],td[data-k="time"]{grid-column:1;color:var(--muted);font-size:13px}
+  td[data-k="state"]{grid-column:2;grid-row:1}
+  td[data-k="act"]{grid-column:2;grid-row:2 / span 2;align-self:end}
+}
+
+.issues{display:grid;gap:10px}
+.issue{display:grid;gap:6px;border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.issue code{font-family:var(--mono);font-size:13px;background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhere}
+.formats{display:grid;gap:4px;font-size:13px}
+.formats code{font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>스튜디오어디 알림톡</h1>
+      <div class="muted small">구글 캘린더 예약에 맞춰 카카오 알림톡을 자동으로 보내요</div>
+    </div>
+    <div class="status">
+      <span class="pill ok"><span class="dot"></span>구글 캘린더 연결됨 · 2분 전 확인</span>
+      <label class="switch pill" for="dryrun"><input type="checkbox" id="dryrun" checked> 테스트 모드</label>
+    </div>
+  </header>
+  <p class="demo">UI 초안입니다. 화면에 나오는 예약자와 발송 기록은 모두 예시 데이터이고, 저장해도 실제로 반영되지 않아요.</p>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-rules" aria-selected="true" data-tab="rules">자동 메시지</button>
+    <button class="tab" role="tab" id="t-log" aria-selected="false" data-tab="log">발송 내역</button>
+    <button class="tab" role="tab" id="t-issues" aria-selected="false" data-tab="issues">확인 필요<span class="badge" id="issueCount">2</span></button>
+  </nav>
+
+  <!-- 자동 메시지 -->
+  <section id="p-rules" class="editor">
+    <div class="rules" id="ruleList"></div>
+    <div class="card" id="ruleEditor"></div>
+  </section>
+
+  <!-- 발송 내역 -->
+  <section id="p-log" class="card" hidden>
+    <div style="display:grid;gap:12px">
+      <div class="row" style="justify-content:space-between">
+        <h2>발송 내역</h2>
+        <div class="filters" id="logFilters"></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>예약자</th><th>메시지</th><th>이용 일시</th><th>상태</th><th>발송 시각</th><th></th></tr></thead>
+          <tbody id="logRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 확인 필요 -->
+  <section id="p-issues" class="card" hidden>
+    <div style="display:grid;gap:14px">
+      <div>
+        <h2>정보가 부족해서 보내지 못한 예약</h2>
+        <p class="muted small" style="margin:4px 0 0">구글 캘린더에서 일정을 고치면 다음 확인(5분 이내) 때 자동으로 발송돼요.</p>
+      </div>
+      <div class="issues" id="issueList"></div>
+      <div class="formats">
+        <h3>이렇게 적으면 인식돼요</h3>
+        <div>제목: <code>홍길동 / 010-1234-5678</code></div>
+        <div>설명: <code>이름: 홍길동</code> <code>연락처: 010-1234-5678</code> <code>상품: B. 밤 패키지</code></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const SAMPLE = {이름:"서은수", 상품:"스튜디오어디 - A. 낮 패키지 (11-17시)", 이용일시:"2026-10-20(화) 11:00~17:00", 스튜디오:"스튜디오어디"};
+const VARS = Object.keys(SAMPLE);
+
+const rules = [
+  {id:"booking_confirmed", name:"예약완료 안내", trigger:"created", mode:"offset", offset:0, unit:"분", dayAt:"18:00", on:true, sent:34,
+   title:"[스튜디오어디] 예약완료 안내", templateId:"KA01TP2410130001",
+   text:"#{이름}님, 예약에 감사드리며 안내사항 전달드립니다.\n\n■ 예약 상품: #{상품}\n■ 이용 일시: #{이용일시}\n\n▪시설보호를 위하여 청소보증금 5만원을 받고있습니다. 3333-18-8825963(카카오뱅크, 서나연) 입금부탁드리며, 청소보증금 금액은 퇴실 후 청소상태 확인 후 환급드립니다.\n\n▪공간 이용안내 및 이용 시 주의사항은 전날 발송드리니 확인부탁드립니다.\n\n▪추가적인 문의사항은 하단의 네이버톡톡으로 부탁드립니다."},
+  {id:"day_before", name:"이용 전날 안내", trigger:"start", mode:"day", offset:0, unit:"시간", dayAt:"18:00", on:true, sent:29,
+   title:"[스튜디오어디] 이용 안내", templateId:"KA01TP2410130002",
+   text:"#{이름}님, 내일 이용 예정이신 예약 안내드립니다.\n\n■ 예약 상품: #{상품}\n■ 이용 일시: #{이용일시}\n\n▪입실 비밀번호는 당일 오전에 안내드려요.\n▪주차는 건물 뒤편 2대까지 가능합니다."},
+  {id:"before_end", name:"퇴실 안내", trigger:"end", mode:"offset", offset:3, unit:"시간", dayAt:"18:00", on:false, sent:12,
+   title:"[스튜디오어디] 퇴실 안내", templateId:"",
+   text:"#{이름}님, 이용 종료 3시간 전 안내드립니다.\n\n■ 이용 일시: #{이용일시}\n\n▪퇴실 전 소품 원위치와 쓰레기 분리배출 부탁드립니다."},
+];
+const TRIGGER = {created:"예약 확정", start:"이용 시작", end:"이용 종료"};
+
+const logs = [
+  {name:"서은수", phone:"010-****-3333", rule:"예약완료 안내", when:"10/20(화) 11:00", state:"sent", at:"10/13 09:02"},
+  {name:"이지우", phone:"010-****-1188", rule:"이용 전날 안내", when:"10/14(화) 11:00", state:"sent", at:"10/13 18:00"},
+  {name:"오현경", phone:"010-****-9021", rule:"예약완료 안내", when:"10/18(토) 11:00", state:"retry", at:"10/13 08:45", err:"솔라피 응답 지연 · 2/3회 시도"},
+  {name:"김민선", phone:"010-****-4410", rule:"이용 전날 안내", when:"10/13(월) 11:00", state:"failed", at:"10/12 18:00", err:"수신 번호가 카카오톡을 사용하지 않음"},
+  {name:"박서준", phone:"010-****-7702", rule:"예약완료 안내", when:"10/25(토) 11:00", state:"sent", at:"10/12 21:14"},
+  {name:"최유나", phone:"010-****-5530", rule:"퇴실 안내", when:"10/11(토) 11:00", state:"sent", at:"10/11 14:00"},
+];
+const STATE = {sent:["성공","ok"], retry:["재시도 중","warn"], failed:["실패","bad"]};
+
+const issues = [
+  {title:"정해인 A룸", reason:"휴대폰 번호가 없어요", when:"10/16(목) 11:00~17:00"},
+  {title:"이수아 / 02-555-1234", reason:"휴대폰 번호가 아니에요 (02 일반전화)", when:"10/19(일) 11:00~17:00"},
+];
+
+let current = rules[0].id, filter = "all", draft = null;
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function whenText(r){
+  if (r.trigger === "created") return "예약이 확정되면 바로 발송돼요";
+  if (r.mode === "day") return `${TRIGGER[r.trigger]}일 전날 ${r.dayAt}에 발송돼요`;
+  if (!r.offset) return `${TRIGGER[r.trigger]} 시각에 발송돼요`;
+  return `${TRIGGER[r.trigger]} ${r.offset}${r.unit} 전에 발송돼요`;
+}
+
+function renderList(){
+  $("#ruleList").innerHTML = rules.map(r => `
+    <button class="rule" data-id="${r.id}" aria-current="${r.id === current}">
+      <h2>${esc(r.name)}</h2>
+      <div class="meta">
+        <span class="pill ${r.on ? "ok" : "off"}"><span class="dot"></span>${r.on ? "발송 중" : "중지됨"}</span>
+        <span class="small muted">누적 <span class="num">${r.sent}</span>회</span>
+      </div>
+      <div class="when">${whenText(r)}</div>
+    </button>`).join("") + `<button class="rule add" id="addRule">+ 자동 메시지 추가</button>`;
+}
+
+function preview(text){
+  return esc(text).replace(/#\{([^}]+)\}/g, (m, v) =>
+    SAMPLE[v] ? `<mark>${esc(SAMPLE[v])}</mark>` : `<mark class="missing">${m}</mark>`);
+}
+
+function renderEditor(){
+  const r = draft;
+  const presets = [[5,"분"],[10,"분"],[30,"분"],[1,"시간"],[3,"시간"]];
+  const isCreated = r.trigger === "created";
+  const custom = r.mode === "custom";
+  const presetActive = p => r.mode === "offset" && r.offset === p[0] && r.unit === p[1];
+  $("#ruleEditor").innerHTML = `
+  <div style="display:grid">
+    <div class="section">
+      <div class="row" style="justify-content:space-between">
+        <h2>${esc(r.name)}</h2>
+        <label class="switch" for="ruleOn"><input type="checkbox" id="ruleOn" ${r.on ? "checked" : ""}> ${r.on ? "발송 중" : "중지됨"}</label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>발송 시점</h3>
+      <label class="f" for="trigger">기준
+        <select id="trigger">${Object.entries(TRIGGER).map(([k,v]) => `<option value="${k}" ${k === r.trigger ? "selected" : ""}>${v}</option>`).join("")}</select>
+      </label>
+      ${isCreated ? "" : `
+      <div class="chips" id="presets">
+        ${presets.map(p => `<button class="chip" data-o="${p[0]}" data-u="${p[1]}" aria-pressed="${presetActive(p)}">${p[0]}${p[1]} 전</button>`).join("")}
+        ${r.trigger === "start" ? `<button class="chip" data-mode="day" aria-pressed="${r.mode === "day"}">전날 지정 시각</button>` : ""}
+        <button class="chip" data-mode="custom" aria-pressed="${custom}">직접 입력</button>
+      </div>
+      ${r.mode === "day" ? `<div class="row"><span>전날</span><input type="time" id="dayAt" value="${r.dayAt}" style="width:130px"><span>에 발송</span></div>` : ""}
+      ${custom ? `<div class="row"><input type="number" id="offset" min="0" value="${r.offset}"><select id="unit"><option ${r.unit === "분" ? "selected" : ""}>분</option><option ${r.unit === "시간" ? "selected" : ""}>시간</option></select><span>전</span></div>` : ""}`}
+      <div class="summary">${whenText(r)}</div>
+      <div class="hint">변경 사항은 다음 발송부터 적용돼요. 시점을 앞당기면 이미 그 시점을 지난 예약에는 곧바로 발송돼요. 이용이 끝난 예약에는 보내지 않아요.</div>
+    </div>
+
+    <div class="section">
+      <h3>메시지 내용</h3>
+      <label class="f" for="title">제목 <input id="title" maxlength="40" value="${esc(r.title)}"></label>
+      <div class="hint"><span class="num" id="titleLen">${r.title.length}</span>/40</div>
+      <div class="row small"><span class="muted">변수 넣기</span>
+        <div class="chips">${VARS.map(v => `<button class="chip var" data-var="${v}">#{${v}}</button>`).join("")}</div>
+      </div>
+      <label class="f" for="text">내용 <textarea id="text" maxlength="1000">${esc(r.text)}</textarea></label>
+      <div class="hint"><span class="num" id="textLen">${r.text.length}</span>/1000 · 카카오 검수에서 승인된 문구와 똑같아야 발송돼요. 문구를 바꾸면 다시 검수를 받아야 해요.</div>
+      <label class="f" for="tplId">알림톡 템플릿 ID <input id="tplId" placeholder="솔라피에서 승인된 템플릿 ID" value="${esc(r.templateId)}"></label>
+      ${r.templateId ? "" : `<div class="pill warn" style="justify-self:start"><span class="dot"></span>템플릿 ID가 없어서 발송되지 않아요</div>`}
+    </div>
+
+    <div class="section" style="padding-bottom:0">
+      <h3>미리보기 <span class="muted small" style="font-weight:400">예시 예약자 기준</span></h3>
+      <div class="phone">
+        <div class="from"><span class="avatar">S</span>스튜디오어디</div>
+        <div class="bubble"><div class="head" id="pvTitle">${esc(r.title)}</div><div class="body" id="pvBody">${preview(r.text)}</div></div>
+        <div class="time">오전 9:02</div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="testSend">내 번호로 테스트 발송</button>
+        <button class="btn" id="cancel">취소</button>
+        <button class="btn primary" id="save">저장하기</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderLog(){
+  const counts = {all: logs.length};
+  logs.forEach(l => counts[l.state] = (counts[l.state] || 0) + 1);
+  $("#logFilters").innerHTML = [["all","전체"],["sent","성공"],["retry","재시도 중"],["failed","실패"]]
+    .map(([k,v]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${v} <span class="num">${counts[k] || 0}</span></button>`).join("");
+  $("#logRows").innerHTML = logs.filter(l => filter === "all" || l.state === filter).map(l => `
+    <tr>
+      <td data-k="who"><strong>${l.name}</strong> <span class="muted small num">${l.phone}</span></td>
+      <td data-k="msg">${l.rule}${l.err ? `<span class="err">${l.err}</span>` : ""}</td>
+      <td data-k="time" class="num small">${l.when}</td>
+      <td data-k="state"><span class="pill ${STATE[l.state][1]}"><span class="dot"></span>${STATE[l.state][0]}</span></td>
+      <td data-k="time" class="num small muted">${l.at}</td>
+      <td data-k="act">${l.state === "failed" ? `<button class="btn sm" data-resend="${l.name}">다시 보내기</button>` : ""}</td>
+    </tr>`).join("");
+}
+
+function renderIssues(){
+  $("#issueList").innerHTML = issues.map(i => `
+    <div class="issue">
+      <div class="row" style="justify-content:space-between"><code>${esc(i.title)}</code><span class="small muted num">${i.when}</span></div>
+      <div class="small" style="color:var(--bad)">${i.reason}</div>
+    </div>`).join("");
+}
+
+function select(id){ current = id; draft = {...rules.find(r => r.id === id)}; renderList(); renderEditor(); }
+
+let toastTimer;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600);
+}
+
+document.addEventListener("click", e => {
+  const tab = e.target.closest(".tab");
+  if (tab){
+    document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t === tab));
+    ["rules","log","issues"].forEach(k => $("#p-" + k).hidden = k !== tab.dataset.tab);
+    return;
+  }
+  const rule = e.target.closest(".rule[data-id]");
+  if (rule) return select(rule.dataset.id);
+  if (e.target.id === "addRule") return toast("새 자동 메시지 만들기는 다음 단계에서 붙일게요");
+
+  const chip = e.target.closest("#presets .chip");
+  if (chip){
+    if (chip.dataset.mode === "day") draft.mode = "day";
+    else if (chip.dataset.mode === "custom") draft.mode = "custom";
+    else { draft.mode = "offset"; draft.offset = +chip.dataset.o; draft.unit = chip.dataset.u; }
+    return renderEditor();
+  }
+  const v = e.target.closest(".chip.var");
+  if (v){
+    const ta = $("#text"), ins = `#{${v.dataset.var}}`, s = ta.selectionStart;
+    ta.setRangeText(ins, s, ta.selectionEnd, "end"); ta.focus(); ta.dispatchEvent(new Event("input", {bubbles:true}));
+    return;
+  }
+  const f = e.target.closest("[data-f]");
+  if (f){ filter = f.dataset.f; return renderLog(); }
+  if (e.target.dataset.resend) return toast(`${e.target.dataset.resend}님께 다시 보냈어요 (예시)`);
+  if (e.target.id === "save"){
+    Object.assign(rules.find(r => r.id === current), draft);
+    renderList(); return toast("저장했어요. 다음 발송부터 적용돼요 (예시 화면)");
+  }
+  if (e.target.id === "cancel"){ select(current); return toast("변경 사항을 되돌렸어요"); }
+  if (e.target.id === "testSend") return toast($("#dryrun").checked ? "테스트 모드라 로그에만 기록했어요" : "내 번호로 테스트 메시지를 보냈어요 (예시)");
+});
+
+document.addEventListener("input", e => {
+  const id = e.target.id;
+  if (id === "title"){ draft.title = e.target.value; $("#pvTitle").textContent = draft.title; $("#titleLen").textContent = draft.title.length; }
+  if (id === "text"){ draft.text = e.target.value; $("#pvBody").innerHTML = preview(draft.text); $("#textLen").textContent = draft.text.length; }
+  if (id === "tplId") draft.templateId = e.target.value;
+});
+document.addEventListener("change", e => {
+  const id = e.target.id;
+  if (id === "trigger"){ draft.trigger = e.target.value; if (draft.trigger !== "start" && draft.mode === "day") draft.mode = "offset"; renderEditor(); }
+  if (id === "dayAt"){ draft.dayAt = e.target.value; renderEditor(); }
+  if (id === "offset"){ draft.offset = Math.max(0, +e.target.value || 0); renderEditor(); }
+  if (id === "unit"){ draft.unit = e.target.value; renderEditor(); }
+  if (id === "ruleOn"){ draft.on = e.target.checked; Object.assign(rules.find(r => r.id === current), {on: draft.on}); renderList(); renderEditor(); }
+  if (id === "dryrun") toast(e.target.checked ? "테스트 모드: 실제로 보내지 않고 기록만 남겨요" : "실제 발송 모드로 바꿨어요 (예시)");
+});
+
+select(current); renderLog(); renderIssues();
+</script>
