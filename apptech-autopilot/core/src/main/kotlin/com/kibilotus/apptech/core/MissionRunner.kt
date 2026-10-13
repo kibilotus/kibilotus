@@ -31,7 +31,7 @@ class MissionRunner(
             ctx.result(e.status, e.code, e.message, e.step, safeDump())
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
-            ctx.result(Status.FAILED, FailureCode.UNEXPECTED, "interrupted", null, null)
+            ctx.result(Status.FAILED, FailureCode.CANCELLED, "interrupted", null, null)
         } catch (e: Exception) {
             ctx.log("unexpected: $e")
             ctx.result(Status.FAILED, FailureCode.UNEXPECTED, e.toString(), null, safeDump())
@@ -53,6 +53,11 @@ class MissionRunner(
                     ctx.log("finish: ${step.status}")
                     throw Finish(step.status)
                 }
+                is Step.FinishIfAbsent -> if (await(ctx, step.selector, step.timeoutMs) == null) {
+                    ctx.log("finish (absent): ${step.status}")
+                    throw Finish(step.status)
+                }
+                is Step.ReturnToApp -> returnTo(ctx, step)
                 is Step.If -> execute(ctx, if (await(ctx, step.selector, step.timeoutMs) != null) step.then else step.otherwise)
                 is Step.WaitUntilGone -> waitUntilGone(ctx, step)
                 is Step.ReadPoints -> readPoints(ctx, step)
@@ -108,10 +113,28 @@ class MissionRunner(
             val root = snapshot(ctx)
             if (root == null || step.selector.findIn(root) == null) return
             if (clock.nowMs() >= deadline) {
-                throw Abort(Status.FAILED, FailureCode.UNEXPECTED, "still visible: ${step.selector}", step)
+                throw Abort(Status.FAILED, FailureCode.NOT_CONFIRMED, "still visible: ${step.selector}", step)
             }
             clock.sleep(pollIntervalMs)
         }
+    }
+
+    private fun returnTo(ctx: Context, step: Step.ReturnToApp) {
+        for (i in 0..step.maxBacks) {
+            val deadline = clock.nowMs() + 2_000
+            while (clock.nowMs() < deadline) {
+                if (driver.foregroundPackage() == step.packageName) {
+                    humanPause()
+                    return
+                }
+                clock.sleep(pollIntervalMs)
+            }
+            if (i < step.maxBacks) {
+                ctx.log("back (foreground=${driver.foregroundPackage()})")
+                driver.back()
+            }
+        }
+        throw Abort(Status.FAILED, FailureCode.APP_NOT_FOREGROUND, "could not return to ${step.packageName}", step)
     }
 
     private fun readPoints(ctx: Context, step: Step.ReadPoints) {
@@ -174,7 +197,7 @@ class MissionRunner(
             code = code,
             message = message,
             failedStep = step?.description,
-            points = points,
+            points = if (status == Status.SUCCESS) points else null,
             startedAtMs = startedAt,
             durationMs = clock.nowMs() - startedAt,
             screenDump = dump,

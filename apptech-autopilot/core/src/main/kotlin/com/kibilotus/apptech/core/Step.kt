@@ -44,6 +44,20 @@ sealed interface Step {
         override val description get() = "finishIfPresent($status) $selector"
     }
 
+    /** 요소가 없으면 [status]로 미션을 종료 (예: 보상 버튼이 없음 → 이번 회차는 이미 받음) */
+    data class FinishIfAbsent(
+        val selector: Selector,
+        val status: Status = Status.ALREADY_DONE,
+        val timeoutMs: Long = 4_000,
+    ) : Step {
+        override val description get() = "finishIfAbsent($status) $selector"
+    }
+
+    /** 다른 앱/페이지(예: 쿠팡)로 넘어간 뒤 뒤로가기로 대상 앱에 복귀 */
+    data class ReturnToApp(val packageName: String, val maxBacks: Int = 3) : Step {
+        override val description get() = "returnTo $packageName"
+    }
+
     /** 요소 존재 여부에 따라 분기 (팝업, 광고 등 선택적 화면 처리) */
     data class If(
         val selector: Selector,
@@ -54,7 +68,7 @@ sealed interface Step {
         override val description get() = "if $selector"
     }
 
-    /** 요소가 사라질 때까지 대기 (광고 재생 등) */
+    /** 요소가 사라질 때까지 대기. 시간 안에 안 사라지면 NOT_CONFIRMED 실패 (보상 지급 확인 등) */
     data class WaitUntilGone(val selector: Selector, val timeoutMs: Long = 60_000) : Step {
         override val description get() = "waitUntilGone $selector"
     }

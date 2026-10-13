@@ -1,11 +1,15 @@
 package com.kibilotus.apptech.app
 
+import android.Manifest
 import android.app.Activity
-import android.app.KeyguardManager
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -13,26 +17,22 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import com.kibilotus.apptech.core.FailureCode
-import com.kibilotus.apptech.core.MissionResult
-import com.kibilotus.apptech.core.MissionRunner
-import com.kibilotus.apptech.core.Status
-import com.kibilotus.apptech.core.toss.TossMissions
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
- * 1단계(메커니즘 검증)용 수동 실행 화면.
- * - 화면 덤프: 셀렉터 보정용으로 토스 화면 트리를 저장/공유
- * - 지금 실행: 토스 미션을 순서대로 실행하고 결과를 표시
- * 스케줄러(2단계), DB/알림(3단계)은 아직 없다.
+ * 설정/상태 화면.
+ * - 권한 설정: 접근성, 알림, 정확한 알람, 배터리 최적화 예외
+ * - 셀렉터 보정용 화면 덤프
+ * - 수동 실행/중지
  */
 class MainActivity : Activity() {
 
-    private val worker = Executors.newSingleThreadExecutor()
+    private val dumpWorker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private lateinit var status: TextView
     private lateinit var logView: TextView
@@ -47,14 +47,14 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, pad)
         }
-        status = TextView(this).apply { textSize = 15f }
+        status = TextView(this).apply { textSize = 14f }
         root.addView(status)
-        root.addView(button("① 접근성 서비스 설정 열기") {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        })
-        root.addView(button("② 10초 후 화면 덤프 (그 사이 토스 화면으로 이동)") { dumpLater() })
-        root.addView(button("③ 덤프 공유") { shareLastDump() })
-        root.addView(button("④ 토스 미션 지금 실행") { runMissions() })
+        root.addView(button("접근성 서비스 설정") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) })
+        root.addView(button("알림 권한 / 정확한 알람 / 배터리 최적화 예외") { requestPermissions() })
+        root.addView(button("10초 후 화면 덤프 (그 사이 토스 화면으로 이동)") { dumpLater() })
+        root.addView(button("덤프 공유") { shareLastDump() })
+        root.addView(button("미완료 미션 지금 실행") { Autopilot.runNow(this) })
+        root.addView(button("실행 중지") { Autopilot.stop() })
         logView = TextView(this).apply {
             textSize = 12f
             setTextIsSelectable(true)
@@ -65,31 +65,75 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        val connected = AutomationService.instance != null
-        status.text = if (connected) "접근성 서비스: 연결됨 ✅" else "접근성 서비스: 꺼짐 ❌ (① 에서 켜 주세요)"
+        Autopilot.listener = { msg -> log(msg); refreshStatus() }
+        refreshStatus()
+    }
+
+    override fun onPause() {
+        Autopilot.listener = null
+        super.onPause()
     }
 
     override fun onDestroy() {
-        worker.shutdownNow()
+        dumpWorker.shutdownNow()
         super.onDestroy()
+    }
+
+    private fun refreshStatus() {
+        val prefs = AutopilotPrefs(this)
+        val now = Instant.now()
+        val pending = Autopilot.pendingMissions(prefs, now).map { it.title }
+        val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.KOREA)
+        status.text = buildString {
+            appendLine("접근성 서비스: ${ok(AutomationService.instance != null)}")
+            appendLine("알림: ${ok(Notifier.enabled(this@MainActivity))}   정확한 알람: ${ok(AlarmScheduler.canScheduleExact(this@MainActivity))}")
+            appendLine("배터리 최적화 예외: ${ok(ignoringBatteryOptimizations())}")
+            appendLine("다음 알람: ${prefs.nextAlarmAtMs.takeIf { it > 0 }?.let { fmt.format(Date(it)) } ?: "-"}")
+            appendLine("이번 주기 미완료: ${pending.ifEmpty { listOf("없음") }.joinToString()}")
+            prefs.lastReport?.let { append("최근 결과:\n").append(it) }
+        }
+    }
+
+    private fun ok(b: Boolean) = if (b) "✅" else "❌"
+
+    private fun ignoringBatteryOptimizations() =
+        getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+
+    private fun requestPermissions() {
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+
+            !AlarmScheduler.canScheduleExact(this) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
+
+            !ignoringBatteryOptimizations() ->
+                startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+
+            else -> log("필요한 권한이 모두 허용되어 있습니다")
+        }
+        AlarmScheduler.scheduleNext(this)
     }
 
     private fun dumpLater() {
         val service = AutomationService.instance ?: return log("접근성 서비스가 꺼져 있습니다")
         log("10초 후 현재 화면을 덤프합니다. 토스에서 덤프할 화면을 띄워 두세요.")
-        worker.execute {
+        dumpWorker.execute {
             Thread.sleep(10_000)
             val dump = UiDumper(service, dumpDir).dump("screen")
-            if (dump == null) {
-                post("덤프 실패: 활성 창을 읽을 수 없음 (토스가 접근성 조회를 막았을 수 있음)")
-                return@execute
+            main.post {
+                if (dump == null) {
+                    log("덤프 실패: 활성 창을 읽을 수 없음 (토스가 접근성 조회를 막았을 수 있음)")
+                } else {
+                    lastDump = dump.text
+                    log(
+                        "덤프 저장: ${dump.textFile.name} (${dump.text.lines().size}줄)\n" +
+                            "스크린샷: ${dump.screenshot?.name ?: "실패 - ${dump.screenshotError}"}",
+                    )
+                }
             }
-            lastDump = dump.text
-            post(
-                "덤프 저장: ${dump.textFile.name} (${dump.text.lines().size}줄)\n" +
-                    "스크린샷: ${dump.screenshot?.name ?: "실패 - ${dump.screenshotError}"}",
-            )
-            bringToFront()
+            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
         }
     }
 
@@ -105,46 +149,6 @@ class MainActivity : Activity() {
         startActivity(Intent.createChooser(send, "화면 덤프 공유"))
     }
 
-    private fun runMissions() {
-        val service = AutomationService.instance ?: return log("접근성 서비스가 꺼져 있습니다")
-        if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
-            return log("기기가 잠겨 있어 실행할 수 없습니다 (${FailureCode.DEVICE_LOCKED})")
-        }
-        log("── 실행 시작 ${time()} ──")
-        worker.execute {
-            val driver = AccessibilityDriver(service)
-            val runner = MissionRunner(driver, logger = { post(it) })
-            val results = mutableListOf<MissionResult>()
-            for (mission in TossMissions.all) {
-                val result = runner.run(mission)
-                results += result
-                if (result.screenDump != null) {
-                    dumpDir.mkdirs()
-                    File(dumpDir, "fail_${mission.id}_${System.currentTimeMillis()}.txt")
-                        .writeText(UiDumper.mask(result.log.joinToString("\n") + "\n\n" + result.screenDump))
-                }
-                // 앱 잠금/자동화 차단은 다음 미션도 똑같이 막히므로 중단
-                if (result.status == Status.BLOCKED) break
-            }
-            driver.home()
-            post("── 결과 ──\n" + results.joinToString("\n") { it.summary() })
-            bringToFront()
-        }
-    }
-
-    private fun MissionResult.summary() = buildString {
-        append(missionId).append(": ").append(status)
-        points?.let { append(" +").append(it) }
-        code?.let { append(" [").append(it).append(']') }
-        message?.let { append(" ").append(it) }
-        failedStep?.let { append(" @ ").append(it) }
-        append(" (").append(durationMs / 1000).append("s)")
-    }
-
-    private fun bringToFront() {
-        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
-    }
-
     private fun button(label: String, onClick: () -> Unit) = Button(this).apply {
         text = label
         isAllCaps = false
@@ -152,11 +156,8 @@ class MainActivity : Activity() {
         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
     }
 
-    private fun post(msg: String) = main.post { log(msg) }
-
     private fun log(msg: String) {
-        logView.append("$msg\n")
+        val time = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
+        logView.append("$time $msg\n")
     }
-
-    private fun time() = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
 }
