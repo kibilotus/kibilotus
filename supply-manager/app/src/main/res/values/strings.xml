@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">비품 관리</string>
+
+    <!-- 대분류 (탭) -->
+    <string name="category_home">집</string>
+    <string name="category_party_room">파티룸</string>
+    <string name="tab_settings">설정</string>
+
+    <!-- 공통 -->
+    <string name="action_add">추가</string>
+    <string name="action_save">저장</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_delete">삭제</string>
+    <string name="action_rename">이름 변경</string>
+    <string name="action_edit">수정</string>
+    <string name="action_back">뒤로</string>
+    <string name="action_more">더보기</string>
+    <string name="action_confirm">확인</string>
+
+    <!-- 중분류(폴더) -->
+    <string name="folder_list_fab">폴더 추가</string>
+    <string name="folder_add_title">폴더 추가</string>
+    <string name="folder_rename_title">폴더 이름 변경</string>
+    <string name="folder_name_label">폴더 이름 (예: 화장실, 거실)</string>
+    <string name="folder_empty_title">폴더가 없습니다</string>
+    <string name="folder_empty_desc">아래 + 버튼으로 중분류 폴더를 만들어 보세요.\n예) 화장실, 거실, 주방</string>
+    <string name="folder_delete_title">폴더를 삭제할까요?</string>
+    <string name="folder_delete_message">\'%1$s\' 폴더와 그 안의 모든 품목·구매 내역이 함께 삭제됩니다.</string>
+    <string name="folder_meta">품목 %1$d개 · 수량 %2$s</string>
+
+    <!-- 소분류(품목) -->
+    <string name="item_list_fab">품목 추가</string>
+    <string name="item_add_title">품목 추가</string>
+    <string name="item_rename_title">품목 이름 변경</string>
+    <string name="item_name_label">품목 이름 (예: 휴지, 수건)</string>
+    <string name="item_memo_label">메모 (선택)</string>
+    <string name="item_empty_title">품목이 없습니다</string>
+    <string name="item_empty_desc">이 폴더에 관리할 비품을 추가해 보세요.\n예) 휴지, 세제, 수건</string>
+    <string name="item_delete_title">품목을 삭제할까요?</string>
+    <string name="item_delete_message">\'%1$s\' 품목과 등록된 구매 내역이 모두 삭제됩니다.</string>
+    <string name="item_meta_never">구매 내역 없음</string>
+    <string name="item_meta_last">최근 구매 %1$s</string>
+
+    <!-- 구매 내역 -->
+    <string name="purchase_fab">구매 내역 추가</string>
+    <string name="purchase_add_title">구매 내역 추가</string>
+    <string name="purchase_edit_title">구매 내역 수정</string>
+    <string name="purchase_date_label">구매 일자</string>
+    <string name="purchase_quantity_label">갯수</string>
+    <string name="purchase_cost_label">비용 (원)</string>
+    <string name="purchase_memo_label">메모 (선택)</string>
+    <string name="purchase_empty_title">구매 내역이 없습니다</string>
+    <string name="purchase_empty_desc">구매한 일자, 갯수, 비용을 기록해 두면\n지출 합계를 한눈에 볼 수 있어요.</string>
+    <string name="purchase_delete_title">구매 내역을 삭제할까요?</string>
+    <string name="purchase_delete_message">%1$s · %2$s · %3$s 기록이 삭제됩니다.</string>
+    <string name="purchase_unit_price">단가 %1$s</string>
+
+    <!-- 요약 -->
+    <string name="summary_total_quantity">총 갯수</string>
+    <string name="summary_total_cost">총 비용</string>
+    <string name="summary_purchase_count">구매 횟수</string>
+    <string name="summary_avg_unit_price">평균 단가</string>
+    <string name="summary_purchase_count_value">%1$d회</string>
+
+    <!-- 설정 -->
+    <string name="settings_title">설정</string>
+    <string name="settings_section_theme">화면 테마</string>
+    <string name="settings_theme_system">시스템 설정 따르기</string>
+    <string name="settings_theme_light">라이트</string>
+    <string name="settings_theme_dark">다크</string>
+    <string name="settings_section_summary">전체 요약</string>
+    <string name="settings_summary_row">폴더 %1$d · 품목 %2$d</string>
+    <string name="settings_summary_total">전체 합계</string>
+    <string name="settings_section_data">데이터</string>
+    <string name="settings_delete_all">모든 데이터 삭제</string>
+    <string name="settings_delete_all_desc">폴더, 품목, 구매 내역을 모두 지웁니다.</string>
+    <string name="settings_delete_all_title">모든 데이터를 삭제할까요?</string>
+    <string name="settings_delete_all_message">이 작업은 되돌릴 수 없습니다. 모든 폴더와 품목, 구매 내역이 삭제됩니다.</string>
+    <string name="settings_deleted">모든 데이터를 삭제했습니다.</string>
+    <string name="settings_section_about">앱 정보</string>
+    <string name="settings_version">버전 %1$s</string>
+
+    <!-- 오류 메시지 -->
+    <string name="error_blank_name">이름을 입력해 주세요.</string>
+    <string name="error_duplicate_folder">같은 이름의 폴더가 이미 있습니다.</string>
+    <string name="error_duplicate_item">같은 이름의 품목이 이미 있습니다.</string>
+    <string name="error_invalid_quantity">갯수는 1 이상의 숫자로 입력해 주세요.</string>
+    <string name="error_invalid_cost">비용은 0 이상의 숫자로 입력해 주세요.</string>
+    <string name="error_not_found">대상을 찾을 수 없습니다.</string>
+</resources>
