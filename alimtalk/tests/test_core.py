@@ -153,7 +153,7 @@ class FakeSender:
 def make_cfg():
     return Config(
         calendar_id="c",
-        studio_name="스튜디오어디",
+        studio_name="스튜디오버디",
         default_product="A. 낮 패키지",
         rules=[Rule("booking_confirmed", "created", "confirm"), Rule("before_end", "end", "end", offset_minutes=-180)],
         templates={

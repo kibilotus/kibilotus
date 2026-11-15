@@ -123,7 +123,7 @@ td .err{display:block;font-size:12px;color:var(--bad)}
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>스튜디오어디 알림톡</h1>
+      <h1>스튜디오버디 알림톡</h1>
       <div class="muted small">구글 캘린더 예약에 맞춰 카카오 알림톡을 자동으로 보내요</div>
     </div>
     <div class="status">
@@ -180,18 +180,18 @@ td .err{display:block;font-size:12px;color:var(--bad)}
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
-const SAMPLE = {이름:"서은수", 상품:"스튜디오어디 - A. 낮 패키지 (11-17시)", 이용일시:"2026-10-20(화) 11:00~17:00", 스튜디오:"스튜디오어디"};
+const SAMPLE = {이름:"서은수", 상품:"스튜디오버디 - A. 낮 패키지 (11-17시)", 이용일시:"2026-10-20(화) 11:00~17:00", 스튜디오:"스튜디오버디"};
 const VARS = Object.keys(SAMPLE);
 
 const rules = [
   {id:"booking_confirmed", name:"예약완료 안내", trigger:"created", mode:"offset", offset:0, unit:"분", dayAt:"18:00", on:true, sent:34,
-   title:"[스튜디오어디] 예약완료 안내", templateId:"KA01TP2410130001",
+   title:"[스튜디오버디] 예약완료 안내", templateId:"KA01TP2410130001",
    text:"#{이름}님, 예약에 감사드리며 안내사항 전달드립니다.\n\n■ 예약 상품: #{상품}\n■ 이용 일시: #{이용일시}\n\n▪시설보호를 위하여 청소보증금 5만원을 받고있습니다. 3333-18-8825963(카카오뱅크, 서나연) 입금부탁드리며, 청소보증금 금액은 퇴실 후 청소상태 확인 후 환급드립니다.\n\n▪공간 이용안내 및 이용 시 주의사항은 전날 발송드리니 확인부탁드립니다.\n\n▪추가적인 문의사항은 하단의 네이버톡톡으로 부탁드립니다."},
   {id:"day_before", name:"이용 전날 안내", trigger:"start", mode:"day", offset:0, unit:"시간", dayAt:"18:00", on:true, sent:29,
-   title:"[스튜디오어디] 이용 안내", templateId:"KA01TP2410130002",
+   title:"[스튜디오버디] 이용 안내", templateId:"KA01TP2410130002",
    text:"#{이름}님, 내일 이용 예정이신 예약 안내드립니다.\n\n■ 예약 상품: #{상품}\n■ 이용 일시: #{이용일시}\n\n▪입실 비밀번호는 당일 오전에 안내드려요.\n▪주차는 건물 뒤편 2대까지 가능합니다."},
   {id:"before_end", name:"퇴실 안내", trigger:"end", mode:"offset", offset:3, unit:"시간", dayAt:"18:00", on:false, sent:12,
-   title:"[스튜디오어디] 퇴실 안내", templateId:"",
+   title:"[스튜디오버디] 퇴실 안내", templateId:"",
    text:"#{이름}님, 이용 종료 3시간 전 안내드립니다.\n\n■ 이용 일시: #{이용일시}\n\n▪퇴실 전 소품 원위치와 쓰레기 분리배출 부탁드립니다."},
 ];
 const TRIGGER = {created:"예약 확정", start:"이용 시작", end:"이용 종료"};
@@ -287,7 +287,7 @@ function renderEditor(){
     <div class="section" style="padding-bottom:0">
       <h3>미리보기 <span class="muted small" style="font-weight:400">예시 예약자 기준</span></h3>
       <div class="phone">
-        <div class="from"><span class="avatar">S</span>스튜디오어디</div>
+        <div class="from"><span class="avatar">S</span>스튜디오버디</div>
         <div class="bubble"><div class="head" id="pvTitle">${esc(r.title)}</div><div class="body" id="pvBody">${preview(r.text)}</div></div>
         <div class="time">오전 9:02</div>
       </div>

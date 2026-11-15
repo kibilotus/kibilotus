@@ -9,8 +9,8 @@ lookahead_days: 8            # 앞으로 8일 이내 일정만 조회
 max_attempts: 3              # 발송 실패 시 재시도 포함 최대 시도 횟수 (폴링 주기마다 1회)
 dry_run: true                # true: 실제 발송 없이 로그만 출력
 
-studio_name: 스튜디오어디
-default_product: "스튜디오어디 - A. 낮 패키지 (11-17시)"  # 일정에 '상품:' 이 없을 때 사용
+studio_name: 스튜디오버디
+default_product: "스튜디오버디 - A. 낮 패키지 (11-17시)"  # 일정에 '상품:' 이 없을 때 사용
 
 # 일정 설명에서 '키워드: 값' 형태로 찾을 키워드 (생략 시 기본값 사용)
 parser:
