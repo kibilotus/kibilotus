@@ -49,8 +49,9 @@ class SolapiSender:
             "message": {
                 "to": to,
                 "from": self.sender_number,
-                "text": text,  # 알림톡 실패 시 SMS/LMS 대체발송 본문
-                "kakaoOptions": {"pfId": self.pf_id, "templateId": template_id, "variables": variables},
+                # 알림톡은 text 를 넣으면 발송이 실패한다(솔라피 문서). 본문은 승인된 템플릿 + variables 로 만들어지고,
+                # 카카오톡 미사용자에게는 같은 내용이 문자로 대체 발송된다(disableSms=False).
+                "kakaoOptions": {"pfId": self.pf_id, "templateId": template_id, "variables": variables, "disableSms": False},
             }
         }
         try:

@@ -1,0 +1,111 @@
+# cp config.example.yaml config.yaml 후 수정하세요.
+# 비밀값은 여기에 쓰지 말고 환경변수로 넣습니다:
+#   ADMIN_PASSWORD (관리 화면, 아이디는 admin), IMAP_PASSWORD (메일 앱 비밀번호),
+#   SOLAPI_API_KEY, SOLAPI_API_SECRET, SOLAPI_PF_ID, SOLAPI_SENDER
+
+studio_name: 스튜디오버디
+timezone: Asia/Seoul
+db_path: spacehub.db
+poll_interval_seconds: 300     # 5분마다 채널 확인 + 알림톡 발송
+max_attempts: 3                # 알림톡 실패 시 재시도 포함 최대 시도 횟수
+dry_run: true                  # true: 실제 발송 없이 로그만 남김
+public_url: "http://localhost:8000"
+feed_token: ""                 # 마감용 캘린더 주소에 쓸 임의 문자열 (예: python -c "import secrets;print(secrets.token_urlsafe(16))")
+
+# 공간. 상품명/공간명에 keywords 가 들어 있으면 그 공간으로 분류합니다. 못 찾으면 첫 번째 공간.
+rooms:
+  - name: A룸
+    keywords: [A룸, "A.", 낮 패키지]
+  - name: B룸
+    keywords: [B룸, "B.", 밤 패키지]
+
+sources:
+  # 네이버 예약, 스페이스클라우드 예약 알림 메일 읽기 (IMAP)
+  # Gmail: 2단계 인증 후 '앱 비밀번호'를 만들어 IMAP_PASSWORD 에 넣으세요.
+  email:
+    enabled: false
+    host: imap.gmail.com
+    user: studiobuddy.booking@gmail.com
+    lookback_days: 14
+    channels:
+      naver:
+        from: [naver.com]               # TODO: 실제 예약 알림 메일 발신 주소로 좁히기 (샘플 확인 후)
+        cancel_keywords: [취소]
+        ignore_keywords: [리뷰, 정산, 문의, 광고]
+        # labels 로 항목 이름을 바꿀 수 있습니다. 생략하면 기본값(예약번호/예약자명/연락처/이용일시/상품명/결제금액 등)
+        # labels:
+        #   period: [이용일시, 예약일시]
+      spacecloud:
+        from: [spacecloud.kr]           # TODO: 실제 발신 주소로 좁히기
+        cancel_keywords: [취소]
+        ignore_keywords: [리뷰, 정산, 문의, 광고]
+
+  # 스페이스클라우드 호스트센터 '캘린더 내보내기' 주소 (iCal)
+  spacecloud_ical:
+    enabled: false
+    url: ""
+    lookahead_days: 60
+
+  # (선택) 전화·현장 예약을 구글 캘린더에 적어 두는 경우 '직접 예약'으로 가져오기
+  google_calendar:
+    enabled: false
+    calendar_id: "your-calendar-id@group.calendar.google.com"
+    service_account_file: service-account.json
+
+# 알림톡 규칙 (최초 실행 때만 DB 에 들어가고, 이후에는 관리 화면에서 수정합니다)
+#   trigger: created(예약 등록) | start(이용 시작) | end(이용 종료) | cancelled(예약 취소)
+#   offset_minutes: 기준 대비 분 (음수 = 이전), day_before_at: "HH:MM" (이용 시작 기준 전날)
+#   channels: [naver, spacecloud, direct] 중 일부만 적용할 때 (생략 시 전체)
+# 사용 가능 변수: #{이름} #{상품} #{공간} #{이용일시} #{채널} #{금액} #{스튜디오}
+# text 는 카카오 검수 승인된 문구와 같아야 하고, solapi_template_id 가 없으면 실제 발송 모드에서 보내지 않습니다.
+rules:
+  - id: booking_confirmed
+    name: 예약완료 안내
+    trigger: created
+    title: "[스튜디오버디] 예약완료 안내"
+    solapi_template_id: ""
+    text: |-
+      #{이름}님, #{채널}로 예약해주셔서 감사합니다.
+
+      ■ 예약 상품: #{상품}
+      ■ 이용 일시: #{이용일시}
+
+      ▪시설보호를 위하여 청소보증금 5만원을 받고있습니다. 3333-18-8825963(카카오뱅크, 서나연) 입금부탁드리며, 청소보증금 금액은 퇴실 후 청소상태 확인 후 환급드립니다.
+
+      ▪공간 이용안내 및 이용 시 주의사항은 전날 발송드리니 확인부탁드립니다.
+
+      ▪추가적인 문의사항은 하단의 네이버톡톡으로 부탁드립니다.
+  - id: day_before
+    name: 이용 전날 안내
+    trigger: start
+    day_before_at: "18:00"
+    title: "[스튜디오버디] 이용 안내"
+    solapi_template_id: ""
+    text: |-
+      #{이름}님, 내일 이용 예정이신 예약 안내드립니다.
+
+      ■ 공간: #{공간}
+      ■ 이용 일시: #{이용일시}
+
+      (공간 이용안내 및 주의사항을 입력하세요)
+  - id: before_end
+    name: 퇴실 안내
+    trigger: end
+    offset_minutes: -180
+    enabled: false
+    title: "[스튜디오버디] 퇴실 안내"
+    solapi_template_id: ""
+    text: |-
+      #{이름}님, 이용 종료 3시간 전 안내드립니다.
+
+      ■ 이용 일시: #{이용일시}
+
+      (퇴실 시 주의사항을 입력하세요)
+  - id: cancelled
+    name: 취소 안내
+    trigger: cancelled
+    title: "[스튜디오버디] 예약취소 안내"
+    solapi_template_id: ""
+    text: |-
+      #{이름}님, #{이용일시} 예약이 취소되었습니다.
+      보증금 환불은 영업일 기준 1~2일 내 처리됩니다.

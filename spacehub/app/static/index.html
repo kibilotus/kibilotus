@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스튜디오 예약 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 좌측 내비게이션 + 우측 작업 영역. 휴대폰 폭에서는 상단 가로 탭 */
+:root{
+  color-scheme:light;
+  --bg:#f2f4f3; --surface:#ffffff; --sunken:#f7f8f8; --line:#dbe1de; --fg:#16201c; --muted:#5d6a65;
+  --accent:#1f6f5c; --accent-soft:#e0eee9;
+  --naver:#0b9a4a; --naver-soft:#e2f4e9; --spacecloud:#6a4fd8; --spacecloud-soft:#ece8fb; --direct:#2c66c4; --direct-soft:#e3ecfa;
+  --ok:#1f8a4c; --ok-soft:#e3f4ea; --warn:#a86400; --warn-soft:#fbf0dc; --bad:#c2372f; --bad-soft:#fbe6e4;
+  --kakao-bg:#bacee0;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1412; --surface:#182019; --sunken:#131a17; --line:#2a3530; --fg:#e6eeea; --muted:#98a7a1;
+  --accent:#5cc4a6; --accent-soft:#1b3830;
+  --naver:#3fcf7d; --naver-soft:#16331f; --spacecloud:#a593ff; --spacecloud-soft:#262046; --direct:#7aa7f0; --direct-soft:#1a2740;
+  --ok:#55c98a; --ok-soft:#163222; --warn:#e3a54a; --warn-soft:#382a12; --bad:#ef7b72; --bad-soft:#3d1d1a;
+  --kakao-bg:#2b3a48; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14.5px;line-height:1.55}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-size:19px;font-weight:700} h2{font-size:16px;font-weight:600} h3{font-size:14px;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.num{font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:100vh}
+nav.side{background:var(--surface);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{padding:4px 10px 14px;display:grid;gap:2px}
+.navbtn{appearance:none;border:0;background:none;font:inherit;color:var(--muted);text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.navbtn:hover{background:var(--sunken);color:var(--fg)}
+.navbtn[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.navcount{font-size:11.5px;background:var(--bad);color:#fff;border-radius:999px;padding:0 7px}
+.side .foot{margin-top:auto;padding:10px;border-top:1px solid var(--line);display:grid;gap:6px}
+main{padding-inline:28px;padding-block:22px 56px;display:grid;gap:18px;align-content:start;min-width:0}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  nav.side{position:sticky;top:0;z-index:5;height:auto;flex-direction:row;overflow-x:auto;padding:8px 16px;border-right:0;border-bottom:1px solid var(--line)}
+  .brand,.side .foot{display:none}
+  .navbtn{white-space:nowrap}
+  main{padding-inline:16px}
+}
+.view{display:grid;gap:16px}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:14px;min-width:0}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+.banner{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:7px 11px}
+.empty{color:var(--muted);font-size:13px;padding:14px;text-align:center;background:var(--sunken);border-radius:8px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.ok{color:var(--ok);background:var(--ok-soft)} .warn{color:var(--warn);background:var(--warn-soft)} .bad{color:var(--bad);background:var(--bad-soft)}
+.off{color:var(--muted);border:1px solid var(--line)}
+.ch{display:inline-flex;font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;white-space:nowrap;color:var(--c);background:var(--cs)}
+.c-naver{--c:var(--naver);--cs:var(--naver-soft)} .c-spacecloud{--c:var(--spacecloud);--cs:var(--spacecloud-soft)} .c-direct{--c:var(--direct);--cs:var(--direct-soft)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:2px}
+.kpi .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+
+.tl-wrap{overflow-x:auto}
+.tl{min-width:640px;display:grid;grid-template-columns:90px 1fr;row-gap:10px}
+.tl-axis{position:relative;height:18px;font-size:11px;color:var(--muted)}
+.tl-axis span{position:absolute;transform:translateX(-50%)}
+.tl-room{font-size:13px;font-weight:600;align-self:center}
+.tl-track{position:relative;height:44px;background:var(--sunken);border-radius:8px}
+.tl-b{position:absolute;top:4px;bottom:4px;border-radius:6px;padding:3px 8px;font-size:12px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-left:3px solid var(--c);background:var(--cs);color:var(--c)}
+.tl-b b{color:var(--fg)}
+.now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--bad)}
+.issue{display:grid;gap:3px;border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:10px 12px;font-size:13px}
+.issue.w{border-left-color:var(--warn)}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--sunken)}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{appearance:none;font:inherit;font-size:13px;padding:6px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.week-wrap{overflow-x:auto}
+.week{display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));gap:8px;min-width:860px}
+.day{background:var(--sunken);border-radius:10px;padding:8px;display:grid;gap:6px;align-content:start;min-height:220px}
+.day h3{font-size:13px;display:flex;justify-content:space-between}
+.day.today{outline:2px solid var(--accent)}
+.ev{border-radius:7px;padding:6px 8px;font-size:12px;line-height:1.35;border-left:3px solid var(--c);background:var(--cs);display:grid;gap:1px;color:var(--c)}
+.ev b{color:var(--fg)} .ev span{color:var(--muted)}
+.ev.cancelled{opacity:.55;text-decoration:line-through}
+.ev.conflict{outline:2px solid var(--bad);outline-offset:-2px}
+
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.wrap{white-space:normal;min-width:200px}
+.msgs{display:flex;gap:4px;flex-wrap:wrap}
+.msgs i{font-style:normal;font-size:11px;padding:1px 6px;border-radius:4px}
+
+form.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
+label.f{display:grid;gap:5px;font-size:12.5px;font-weight:600;min-width:0}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:230px;resize:vertical;line-height:1.6}
+.btn{appearance:none;font:inherit;font-weight:600;font-size:13.5px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
+.switch input{appearance:none;width:36px;height:20px;border-radius:999px;background:var(--line);position:relative;padding:0;border:0;cursor:pointer;flex:none}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:left .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{left:19px}
+.note{font-size:12.5px;color:var(--muted);background:var(--sunken);border-radius:8px;padding:8px 10px}
+.channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.chcard{border-top:4px solid var(--c)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.copy{display:flex;gap:6px} .copy input{font-size:12px}
+
+.rules{display:grid;gap:8px}
+.rule{appearance:none;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.rule[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.phone{background:var(--kakao-bg);border-radius:14px;padding:14px}
+.bubble{background:var(--surface);border-radius:4px 14px 14px 14px;overflow:hidden;max-width:300px}
+.bubble .head{background:#fee500;color:#1d1d1d;font-weight:700;font-size:13px;padding:8px 12px}
+.bubble .body{padding:12px;font-size:13px;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row input[type=number]{width:90px} .row select{width:auto}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13.5px;max-width:calc(100% - 32px);z-index:10}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="메뉴">
+    <div class="brand"><b id="studio">스튜디오</b><span class="muted small">예약 통합 관리</span></div>
+    <button class="navbtn" data-view="dashboard" aria-current="page">대시보드</button>
+    <button class="navbtn" data-view="calendar">통합 캘린더</button>
+    <button class="navbtn" data-view="bookings">예약 목록</button>
+    <button class="navbtn" data-view="channels">채널 연동 <span class="navcount" id="chCount" hidden></span></button>
+    <button class="navbtn" data-view="alimtalk">자동 알림톡</button>
+    <button class="navbtn" data-view="messages">발송 내역</button>
+    <div class="foot">
+      <button class="btn sm" id="syncNow">지금 동기화</button>
+      <span class="muted small" id="syncedAt"></span>
+    </div>
+  </nav>
+
+  <main>
+    <p class="banner" id="dryBanner" hidden>테스트 모드예요. 알림톡을 실제로 보내지 않고 기록만 남겨요. config.yaml 의 dry_run 을 false 로 바꾸면 실제로 발송해요.</p>
+
+    <section id="v-dashboard" class="view">
+      <div class="top"><div><h1 id="todayTitle">오늘</h1><p class="muted small">모든 채널의 예약을 한곳에서 봐요</p></div></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><h2>오늘 공간별 예약</h2><div class="legend" id="legend"></div></div><div class="tl-wrap"><div class="tl" id="timeline"></div></div></div>
+        <div style="display:grid;gap:18px">
+          <div class="card"><div class="card-h"><h2>확인이 필요해요</h2><span id="issueCount"></span></div><div id="issues" style="display:grid;gap:8px"></div></div>
+          <div class="card"><h2>이번 달 채널별 예약</h2><div class="bar" id="monthBar"></div><div class="legend" id="monthLegend"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="v-calendar" class="view" hidden>
+      <div class="top"><div><h1>통합 캘린더</h1><p class="muted small" id="weekLabel"></p></div>
+        <div class="chips"><button class="btn sm" data-week="-1">이전 주</button><button class="btn sm" data-week="0">이번 주</button><button class="btn sm" data-week="1">다음 주</button></div></div>
+      <div class="card"><div class="chips" id="calFilter"></div><div class="week-wrap"><div class="week" id="week"></div></div></div>
+    </section>
+
+    <section id="v-bookings" class="view" hidden>
+      <div class="top"><div><h1>예약 목록</h1><p class="muted small">오늘부터 30일 · 채널 예약은 해당 플랫폼에서 취소하면 자동 반영돼요</p></div></div>
+      <div class="card">
+        <h2>직접 예약 추가</h2>
+        <form class="grid" id="addForm">
+          <label class="f" for="fName">예약자<input id="fName" required maxlength="40"></label>
+          <label class="f" for="fPhone">휴대폰<input id="fPhone" placeholder="010-0000-0000" inputmode="tel"></label>
+          <label class="f" for="fRoom">공간<select id="fRoom"></select></label>
+          <label class="f" for="fProduct">상품<input id="fProduct" placeholder="예: 시간제 3시간"></label>
+          <label class="f" for="fStart">시작<input id="fStart" type="datetime-local" required step="1800"></label>
+          <label class="f" for="fEnd">종료<input id="fEnd" type="datetime-local" required step="1800"></label>
+          <label class="f" for="fAmount">금액(원)<input id="fAmount" type="number" min="0" step="1000"></label>
+          <button class="btn primary" type="submit">예약 추가</button>
+        </form>
+      </div>
+      <div class="card"><div class="tablewrap"><table>
+        <thead><tr><th>채널</th><th>예약자</th><th>연락처</th><th>공간 · 상품</th><th>이용 일시</th><th style="text-align:right">금액</th><th>상태</th><th>알림톡</th><th></th></tr></thead>
+        <tbody id="bookRows"></tbody></table></div></div>
+    </section>
+
+    <section id="v-channels" class="view" hidden>
+      <div class="top"><div><h1>채널 연동</h1><p class="muted small">연동 설정은 config.yaml 에서 바꿔요. 여기서는 상태를 확인해요</p></div></div>
+      <div class="channels" id="channelCards"></div>
+      <div class="card" id="mailFails"></div>
+    </section>
+
+    <section id="v-alimtalk" class="view" hidden>
+      <div class="top"><div><h1>자동 알림톡</h1><p class="muted small">어느 채널로 들어온 예약이든 같은 규칙으로 보내요</p></div></div>
+      <div class="grid2">
+        <div class="card"><div class="rules" id="rules"></div><form id="ruleForm" style="display:grid;gap:12px"></form></div>
+        <div class="card"><h2>미리보기 <span class="muted small" style="font-weight:400">예시 예약자 기준, 저장 후 갱신</span></h2>
+          <div class="phone"><div class="bubble"><div class="head" id="pvHead"></div><div class="body" id="pvBody"></div></div></div>
+          <p class="note">문구는 카카오 검수에서 승인된 템플릿과 똑같아야 발송돼요. 문구를 바꾸면 솔라피에서 템플릿을 다시 검수받고 템플릿 ID를 넣어주세요.</p></div>
+      </div>
+    </section>
+
+    <section id="v-messages" class="view" hidden>
+      <div class="top"><div><h1>발송 내역</h1><p class="muted small">최근 100건</p></div></div>
+      <div class="card"><div class="tablewrap"><table>
+        <thead><tr><th>처리 시각</th><th>예약자</th><th>채널</th><th>메시지</th><th>상태</th><th>시도</th><th>사유</th></tr></thead>
+        <tbody id="msgRows"></tbody></table></div></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const WD = "일월화수목금토";
+let META = null, RULES = [], curRule = null, weekOffset = 0, calCh = "all";
+
+async function api(path, opts = {}){
+  const res = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
+  if (!res.ok){
+    let msg = `요청 실패 (${res.status})`;
+    try { const j = await res.json(); msg = typeof j.detail === "string" ? j.detail : msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+let toastTimer;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2800); }
+
+const d = s => new Date(s);
+const pad = n => String(n).padStart(2, "0");
+// 시각은 보는 사람의 기기 시간대가 아니라 스튜디오 시간대(META.timezone) 기준으로 표시한다
+let FMT = null;
+function P(s){
+  FMT = FMT || new Intl.DateTimeFormat("en-CA", {timeZone: META.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23", weekday: "short"});
+  const o = {}; FMT.formatToParts(d(s)).forEach(p => o[p.type] = p.value);
+  return {y: +o.year, m: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, wd: "SunMonTueWedThuFriSat".indexOf(o.weekday) / 3, key: `${o.year}-${o.month}-${o.day}`};
+}
+const hm = s => { const x = P(s); return `${pad(x.h)}:${pad(x.mi)}`; };
+const md = s => { const x = P(s); return `${x.m}/${x.d}(${WD[x.wd]})`; };
+const won = n => n == null ? "" : `₩${Number(n).toLocaleString()}`;
+const maskPhone = p => p ? `${p.slice(0,3)}-${p.slice(3,-4)}-${p.slice(-4)}` : "";
+const chTag = c => `<span class="ch c-${c}">${esc(META.channels[c] || c)}</span>`;
+const sendCls = s => ({sent:"ok", skipped:"off", retry:"warn", failed:"bad", invalid:"bad"}[s] || "off");
+const SEND_TXT = {sent:"성공", skipped:"건너뜀", retry:"재시도 중", failed:"실패", invalid:"발송 불가"};
+const ruleName = id => (RULES.find(r => r.id === id) || {}).name || id;
+const ago = s => { if (!s) return "기록 없음"; const m = Math.round((Date.now() - d(s)) / 60000); return m < 1 ? "방금" : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m/60)}시간 전` : md(s); };
+
+/* ---------- 대시보드 ---------- */
+async function loadDashboard(){
+  const s = await api("/api/summary");
+  const now = P(new Date());
+  $("#todayTitle").textContent = `오늘, ${now.m}월 ${now.d}일 ${WD[now.wd]}요일`;
+  const tc = s.today_by_channel, sends = s.week_sends;
+  const syncErr = Object.values(s.sync).filter(x => x.last_error).length;
+  $("#kpis").innerHTML = `
+    <div class="kpi"><span class="s">오늘 예약</span><span class="v">${s.today.length}건</span><span class="s">${Object.keys(META.channels).map(c => `${META.channels[c].replace(" 예약","")} ${tc[c]||0}`).join(" · ")}</span></div>
+    <div class="kpi"><span class="s">이번 주 매출 (확정 예약)</span><span class="v">${won(s.week_revenue) || "₩0"}</span><span class="s">금액을 알 수 있는 예약만 합산</span></div>
+    <div class="kpi"><span class="s">이번 주 알림톡</span><span class="v">${sends.sent||0}건</span><span class="s">실패 ${sends.failed||0} · 발송 불가 ${sends.invalid||0} · 재시도 ${sends.retry||0}</span></div>
+    <div class="kpi"><span class="s">채널 연동</span><span class="v">${Object.keys(s.sync).length ? (syncErr ? `확인 ${syncErr}` : "정상") : "미연동"}</span><span class="s">${Object.keys(s.sync).length} 개 소스</span></div>`;
+  $("#legend").innerHTML = Object.keys(META.channels).map(c => `<span><i class="dot" style="color:var(--${c})"></i>${META.channels[c]}</span>`).join("");
+
+  const S = 8, E = 24, pct = h => Math.max(0, Math.min(100, (h - S) / (E - S) * 100));
+  const hour = x => { const t = P(x); return t.h + t.mi / 60; };
+  let tl = `<div></div><div class="tl-axis">${[8,12,16,20,24].map(h => `<span style="left:${pct(h)}%">${h}시</span>`).join("")}</div>`;
+  META.rooms.forEach(r => {
+    const items = s.today.filter(b => b.room === r).map(b => { const st = hour(b.start), en = P(b.end).key !== P(b.start).key ? 24 : hour(b.end);
+      return `<div class="tl-b c-${b.channel}" style="left:${pct(st)}%;width:${pct(en)-pct(st)}%" title="${esc(META.channels[b.channel])} · ${esc(b.name)}"><b>${esc(b.name || "이름 없음")}</b> ${hm(b.start)}~${hm(b.end)}</div>`; }).join("");
+    tl += `<div class="tl-room">${esc(r)}</div><div class="tl-track">${items}<div class="now" style="left:${pct(now.h + now.mi/60)}%"></div></div>`;
+  });
+  $("#timeline").innerHTML = tl;
+
+  const is = s.issues, list = [];
+  is.conflicts.forEach(([a, b]) => list.push(`<div class="issue"><strong>중복 예약 · ${md(a.start)} ${esc(a.room)}</strong><span class="muted">${esc(META.channels[a.channel])} ${esc(a.name)}님(${hm(a.start)}~${hm(a.end)})과 ${esc(META.channels[b.channel])} ${esc(b.name)}님(${hm(b.start)}~${hm(b.end)}) 예약이 겹쳐요.</span></div>`));
+  is.missing_info.forEach(b => list.push(`<div class="issue w"><strong>${esc(b.errors.join(", "))} · ${md(b.start)} ${esc(b.room)}</strong><span class="muted">${esc(META.channels[b.channel])} ${esc(b.name || "")} 예약이라 알림톡을 보낼 수 없어요.</span></div>`));
+  is.failed_sends.slice(0, 5).forEach(m => list.push(`<div class="issue"><strong>알림톡 실패 · ${esc(m.name || "")}</strong><span class="muted">${esc(ruleName(m.rule_id))}: ${esc(m.last_error || "")}</span></div>`));
+  is.failed_mails.slice(0, 5).forEach(m => list.push(`<div class="issue w"><strong>메일을 읽지 못했어요 · ${esc(META.channels[m.channel] || "")}</strong><span class="muted">${esc(m.subject)} — ${esc(m.error)}</span></div>`));
+  $("#issues").innerHTML = list.join("") || `<p class="empty">확인할 항목이 없어요</p>`;
+  $("#issueCount").innerHTML = list.length ? `<span class="pill bad"><span class="dot"></span>${list.length}건</span>` : "";
+
+  const mc = s.month_by_channel, total = Object.values(mc).reduce((a, b) => a + b, 0) || 1;
+  $("#monthBar").innerHTML = Object.keys(mc).map(c => `<i style="width:${mc[c]/total*100}%;background:var(--${c})"></i>`).join("");
+  $("#monthLegend").innerHTML = Object.keys(mc).map(c => `<span><i class="dot" style="color:var(--${c})"></i>${META.channels[c]} <b class="num">${mc[c]}건</b></span>`).join("");
+
+  const runs = Object.values(s.sync).map(x => x.last_run).filter(Boolean).sort();
+  $("#syncedAt").textContent = runs.length ? `마지막 동기화 ${ago(runs.at(-1))}` : "아직 동기화 기록이 없어요";
+  $("#chCount").textContent = syncErr; $("#chCount").hidden = !syncErr;
+}
+
+/* ---------- 통합 캘린더 ---------- */
+async function loadCalendar(){
+  // 날짜 계산은 UTC 자정 기준의 '달력 날짜'로만 한다 (시간대 영향 없음)
+  const t = P(new Date());
+  const base = Date.UTC(t.y, t.m - 1, t.d - (t.wd + 6) % 7 + weekOffset * 7);
+  const days = [...Array(7)].map((_, i) => { const x = new Date(base + i * 864e5);
+    return {m: x.getUTCMonth() + 1, d: x.getUTCDate(), wd: x.getUTCDay(), key: x.toISOString().slice(0, 10)}; });
+  const items = await api(`/api/bookings?start=${encodeURIComponent(days[0].key + "T00:00:00")}&days=7`);
+  $("#weekLabel").textContent = `${days[0].m}월 ${days[0].d}일 ~ ${days[6].m}월 ${days[6].d}일`;
+  $("#calFilter").innerHTML = [["all","전체 채널"], ...Object.entries(META.channels)].map(([k,v]) => `<button class="chip" data-cc="${k}" aria-pressed="${calCh===k}">${v}</button>`).join("");
+  const overlaps = b => items.some(o => o.id !== b.id && o.status === "confirmed" && b.status === "confirmed" && o.room === b.room && d(o.start) < d(b.end) && d(b.start) < d(o.end));
+  $("#week").innerHTML = days.map(day => {
+    const evs = items.filter(b => P(b.start).key === day.key && (calCh === "all" || b.channel === calCh));
+    return `<div class="day${day.key === t.key ? " today" : ""}"><h3>${day.m}/${day.d}(${WD[day.wd]})<span class="muted small">${evs.filter(b => b.status === "confirmed").length}</span></h3>
+      ${evs.map(b => `<div class="ev c-${b.channel}${b.status === "cancelled" ? " cancelled" : ""}${overlaps(b) ? " conflict" : ""}"><b>${hm(b.start)}~${hm(b.end)} ${esc(b.name || "이름 없음")}</b><span>${esc(b.room)} · ${esc(META.channels[b.channel])}</span>${overlaps(b) ? `<span style="color:var(--bad)">시간 겹침</span>` : ""}</div>`).join("") || `<span class="muted small">예약 없음</span>`}</div>`;
+  }).join("");
+}
+
+/* ---------- 예약 목록 ---------- */
+async function loadBookings(){
+  const items = await api("/api/bookings?days=30");
+  $("#bookRows").innerHTML = items.map(b => `
+    <tr>
+      <td>${chTag(b.channel)}</td>
+      <td><strong>${esc(b.name || "이름 없음")}</strong></td>
+      <td class="num small">${b.phone ? esc(maskPhone(b.phone)) : `<span class="pill bad">없음</span>`}</td>
+      <td>${esc(b.room)}${b.product ? ` · ${esc(b.product)}` : ""}</td>
+      <td class="num">${md(b.start)} ${hm(b.start)}~${hm(b.end)}</td>
+      <td class="num" style="text-align:right">${won(b.amount)}</td>
+      <td><span class="pill ${b.status === "confirmed" ? "ok" : "bad"}"><span class="dot"></span>${b.status === "confirmed" ? "확정" : "취소"}</span></td>
+      <td><div class="msgs">${b.sends.map(x => `<i class="${sendCls(x.status)}" title="${esc(SEND_TXT[x.status])}">${esc(ruleName(x.rule_id))}</i>`).join("") || `<span class="muted small">-</span>`}</div></td>
+      <td>${b.channel === "direct" && b.status === "confirmed" ? `<button class="btn sm" data-cancel="${b.id}">취소</button>` : ""}</td>
+    </tr>`).join("") || `<tr><td colspan="9"><p class="empty">앞으로 30일 동안 예약이 없어요</p></td></tr>`;
+}
+
+/* ---------- 채널 연동 ---------- */
+async function loadChannels(){
+  const c = await api("/api/channels");
+  const st = name => { const x = c.sync[name]; if (!x) return `<span class="pill off"><span class="dot"></span>기록 없음</span>`;
+    return x.last_error ? `<span class="pill bad" title="${esc(x.last_error)}"><span class="dot"></span>확인 필요 · ${ago(x.last_run)}</span>` : `<span class="pill ok"><span class="dot"></span>정상 · ${ago(x.last_run)}</span>`; };
+  const off = `<span class="pill off"><span class="dot"></span>꺼짐</span>`;
+  const em = c.sources.email, ic = c.sources.spacecloud_ical, gc = c.sources.google_calendar;
+  const err = name => c.sync[name]?.last_error ? `<p class="note" style="color:var(--bad)">${esc(c.sync[name].last_error)}</p>` : "";
+  $("#channelCards").innerHTML = `
+    <div class="card chcard c-naver"><div class="card-h"><h2>네이버 예약</h2>${em.enabled && em.channels.includes("naver") ? st("email") : off}</div>
+      <dl class="kv"><dt>방식</dt><dd>예약 알림 메일 읽기</dd><dt>메일 계정</dt><dd>${esc(em.user || "-")}</dd></dl>${err("email")}
+      <p class="note">네이버는 외부에서 예약 시간을 막을 수 없어요. 다른 채널과 겹치면 대시보드에 표시돼요.</p></div>
+    <div class="card chcard c-spacecloud"><div class="card-h"><h2>스페이스클라우드</h2>${ic.enabled ? st("spacecloud_ical") : (em.enabled && em.channels.includes("spacecloud") ? st("email") : off)}</div>
+      <dl class="kv"><dt>캘린더 주소</dt><dd>${ic.enabled ? "사용 중" : "사용 안 함"}</dd><dt>알림 메일</dt><dd>${em.enabled && em.channels.includes("spacecloud") ? "사용 중" : "사용 안 함"}</dd></dl>${err("spacecloud_ical")}
+      ${c.feed_url ? `<p class="small muted">다른 채널 예약 시간을 막으려면 아래 주소를 호스트센터 외부 캘린더에 등록하세요 (지원하는 경우).</p>
+      <span class="copy"><input id="feedUrl" value="${esc(c.feed_url)}" readonly><button class="btn sm" id="copyFeed" type="button">복사</button></span>` : `<p class="note">config.yaml 에 feed_token 을 넣으면 마감용 캘린더 주소가 만들어져요.</p>`}</div>
+    <div class="card chcard c-direct"><div class="card-h"><h2>직접 예약</h2><span class="pill ok"><span class="dot"></span>사용 중</span></div>
+      <dl class="kv"><dt>입력</dt><dd>예약 목록 화면에서 추가</dd><dt>구글 캘린더</dt><dd>${gc.enabled ? "가져오는 중" : "사용 안 함"}</dd></dl>${gc.enabled ? st("google_calendar") : ""}</div>`;
+  const s = await api("/api/summary");
+  const fails = s.issues.failed_mails;
+  $("#mailFails").innerHTML = `<h2>읽지 못한 예약 메일</h2>` + (fails.length ? `<div class="tablewrap"><table><thead><tr><th>받은 시각</th><th>채널</th><th>제목</th><th>사유</th></tr></thead><tbody>${fails.map(m => `<tr><td class="num small">${m.received_at ? md(m.received_at) + " " + hm(m.received_at) : ""}</td><td>${chTag(m.channel)}</td><td class="wrap">${esc(m.subject)}</td><td class="wrap small">${esc(m.error)}</td></tr>`).join("")}</tbody></table></div><p class="note">메일 양식이 바뀌었을 수 있어요. 메일 원문을 개발자에게 전달해주세요.</p>` : `<p class="empty">모든 예약 메일을 읽었어요</p>`);
+}
+
+/* ---------- 자동 알림톡 ---------- */
+const TRIG = {created:"예약 등록", start:"이용 시작", end:"이용 종료", cancelled:"예약 취소"};
+function whenText(r){
+  if (r.trigger === "created") return "예약이 들어오면 바로";
+  if (r.trigger === "cancelled") return "예약이 취소되면 바로";
+  if (r.day_before_at) return `${TRIG[r.trigger]}일 전날 ${r.day_before_at}`;
+  const m = r.offset_minutes, a = Math.abs(m), unit = a % 60 === 0 ? `${a/60}시간` : `${a}분`;
+  return m === 0 ? `${TRIG[r.trigger]} 시각` : `${TRIG[r.trigger]} ${unit} ${m < 0 ? "전" : "후"}`;
+}
+async function loadRules(){
+  RULES = await api("/api/rules");
+  if (!curRule || !RULES.find(r => r.id === curRule)) curRule = RULES[0]?.id;
+  renderRules();
+}
+function renderRules(){
+  $("#rules").innerHTML = RULES.map(r => `<button class="rule" data-rule="${r.id}" aria-current="${r.id === curRule}"><span><strong>${esc(r.name)}</strong><br><span class="muted small">${whenText(r)}${r.channels.length ? " · " + r.channels.map(c => META.channels[c]).join(", ") : ""}</span></span><span class="pill ${r.enabled ? "ok" : "off"}"><span class="dot"></span>${r.enabled ? "발송 중" : "중지됨"}</span></button>`).join("");
+  const r = RULES.find(x => x.id === curRule); if (!r) return;
+  const mode = r.trigger === "created" || r.trigger === "cancelled" ? "now" : r.day_before_at ? "day" : "offset";
+  $("#ruleForm").innerHTML = `
+    <div class="row"><label class="f" for="rName" style="flex:1">이름<input id="rName" value="${esc(r.name)}" maxlength="40"></label>
+      <label class="switch" for="rEnabled"><input type="checkbox" id="rEnabled" ${r.enabled ? "checked" : ""}> 발송</label></div>
+    <div class="row"><label class="f" for="rTrigger">기준<select id="rTrigger">${Object.entries(TRIG).map(([k,v]) => `<option value="${k}" ${k === r.trigger ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      ${mode === "now" ? "" : `
+      ${r.trigger === "start" ? `<label class="f" for="rMode">방식<select id="rMode"><option value="offset" ${mode === "offset" ? "selected" : ""}>몇 분/시간 전</option><option value="day" ${mode === "day" ? "selected" : ""}>전날 지정 시각</option></select></label>` : ""}
+      ${mode === "day" ? `<label class="f" for="rDay">전날 시각<input id="rDay" type="time" value="${r.day_before_at}"></label>`
+        : `<label class="f" for="rOffset">몇 분 전<input id="rOffset" type="number" min="0" step="5" value="${Math.max(0, -r.offset_minutes)}"></label>`}`}</div>
+    <div class="row small"><span class="muted">적용 채널</span>${Object.entries(META.channels).map(([k,v]) => `<label class="switch" for="rc-${k}"><input type="checkbox" id="rc-${k}" data-ch="${k}" ${!r.channels.length || r.channels.includes(k) ? "checked" : ""}> ${v}</label>`).join("")}</div>
+    <label class="f" for="rTitle">제목<input id="rTitle" value="${esc(r.title)}" maxlength="40"></label>
+    <div class="row small"><span class="muted">변수 넣기</span>${META.variables.map(v => `<button type="button" class="chip" data-var="${v}" style="font-size:12px;padding:3px 8px">#{${v}}</button>`).join("")}</div>
+    <label class="f" for="rText">내용<textarea id="rText" maxlength="1000">${esc(r.text)}</textarea></label>
+    <label class="f" for="rTpl">알림톡 템플릿 ID (솔라피)<input id="rTpl" value="${esc(r.solapi_template_id)}" placeholder="검수 승인된 템플릿 ID"></label>
+    ${r.solapi_template_id ? "" : `<span class="pill warn" style="justify-self:start"><span class="dot"></span>템플릿 ID가 없으면 실제 발송 모드에서 보내지 않아요</span>`}
+    <div class="row" style="justify-content:flex-end"><button class="btn" type="button" id="rReset">되돌리기</button><button class="btn primary" type="submit">저장하기</button></div>`;
+  loadPreview();
+}
+async function loadPreview(){
+  try { const p = await api(`/api/rules/${curRule}/preview`); $("#pvHead").textContent = p.title || " "; $("#pvBody").textContent = p.text; }
+  catch (e) { $("#pvBody").textContent = e.message; }
+}
+function formRule(){
+  const r = RULES.find(x => x.id === curRule);
+  const trigger = $("#rTrigger").value;
+  const mode = $("#rMode")?.value || (trigger === "start" && r.day_before_at ? "day" : "offset");
+  const chs = [...document.querySelectorAll("[data-ch]")].filter(x => x.checked).map(x => x.dataset.ch);
+  const now = trigger === "created" || trigger === "cancelled";
+  return {
+    name: $("#rName").value.trim(), trigger, enabled: $("#rEnabled").checked,
+    day_before_at: !now && trigger === "start" && mode === "day" ? ($("#rDay")?.value || "18:00") : null,
+    offset_minutes: now || mode === "day" ? 0 : -Math.abs(+($("#rOffset")?.value || 0)),
+    channels: chs.length === Object.keys(META.channels).length ? [] : chs,
+    title: $("#rTitle").value, solapi_template_id: $("#rTpl").value.trim(), text: $("#rText").value,
+  };
+}
+
+/* ---------- 발송 내역 ---------- */
+async function loadMessages(){
+  const rows = await api("/api/messages");
+  $("#msgRows").innerHTML = rows.map(m => `<tr><td class="num small">${md(m.updated_at)} ${hm(m.updated_at)}</td><td>${esc(m.name || "")} <span class="muted small">${esc(maskPhone(m.phone))}</span></td>
+    <td>${m.channel ? chTag(m.channel) : ""}</td><td>${esc(ruleName(m.rule_id))}</td><td><span class="pill ${sendCls(m.status)}"><span class="dot"></span>${SEND_TXT[m.status] || m.status}</span></td>
+    <td class="num">${m.attempts}</td><td class="wrap small muted">${esc(m.last_error || "")}</td></tr>`).join("") || `<tr><td colspan="7"><p class="empty">아직 발송 기록이 없어요</p></td></tr>`;
+}
+
+/* ---------- 이벤트 ---------- */
+const LOADERS = {dashboard: loadDashboard, calendar: loadCalendar, bookings: loadBookings, channels: loadChannels, alimtalk: loadRules, messages: loadMessages};
+let current = "dashboard";
+async function show(view){
+  current = view;
+  document.querySelectorAll(".navbtn").forEach(b => b.dataset.view === view ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + view);
+  try { await LOADERS[view](); } catch (e) { toast(e.message); }
+}
+
+document.addEventListener("click", async e => {
+  const nav = e.target.closest(".navbtn"); if (nav){ history.replaceState(null, "", "#" + nav.dataset.view); return show(nav.dataset.view); }
+  const wk = e.target.closest("[data-week]"); if (wk){ weekOffset = wk.dataset.week === "0" ? 0 : weekOffset + +wk.dataset.week; return loadCalendar(); }
+  const cc = e.target.closest("[data-cc]"); if (cc){ calCh = cc.dataset.cc; return loadCalendar(); }
+  const rr = e.target.closest("[data-rule]"); if (rr){ curRule = rr.dataset.rule; return renderRules(); }
+  const v = e.target.closest("[data-var]");
+  if (v){ const ta = $("#rText"); ta.setRangeText(`#{${v.dataset.var}}`, ta.selectionStart, ta.selectionEnd, "end"); ta.focus(); return; }
+  if (e.target.id === "rReset") return renderRules();
+  const cancel = e.target.closest("[data-cancel]");
+  if (cancel){
+    if (cancel.dataset.confirm !== "1"){ cancel.dataset.confirm = "1"; cancel.textContent = "정말 취소"; cancel.classList.add("bad"); return; }
+    try { await api(`/api/bookings/${cancel.dataset.cancel}/cancel`, {method: "POST"}); toast("예약을 취소했어요. 취소 안내 규칙이 켜져 있으면 알림톡이 나가요"); loadBookings(); }
+    catch (err) { toast(err.message); }
+    return;
+  }
+  if (e.target.id === "copyFeed"){
+    navigator.clipboard?.writeText($("#feedUrl").value).then(() => toast("주소를 복사했어요"), () => { $("#feedUrl").select(); toast("주소를 선택했어요. 직접 복사해주세요"); });
+    return;
+  }
+  if (e.target.id === "syncNow"){
+    await api("/api/sync", {method: "POST"}).catch(err => toast(err.message));
+    toast("동기화를 시작했어요. 잠시 후 화면을 새로 불러올게요");
+    setTimeout(() => show(current), 4000);
+  }
+});
+document.addEventListener("change", e => {
+  if (["rTrigger", "rMode"].includes(e.target.id)){
+    const r = RULES.find(x => x.id === curRule), f = formRule();
+    if (e.target.id === "rMode") f.day_before_at = e.target.value === "day" ? (r.day_before_at || "18:00") : null;
+    Object.assign(r, f); renderRules();
+  }
+});
+document.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (e.target.id === "ruleForm"){
+    try { const saved = await api(`/api/rules/${curRule}`, {method: "PUT", body: JSON.stringify(formRule())}); Object.assign(RULES.find(x => x.id === curRule), saved); renderRules(); toast("저장했어요. 다음 발송부터 적용돼요"); }
+    catch (err) { toast(err.message); }
+  }
+  if (e.target.id === "addForm"){
+    const body = {name: $("#fName").value, phone: $("#fPhone").value, room: $("#fRoom").value, product: $("#fProduct").value,
+      start: $("#fStart").value, end: $("#fEnd").value, amount: $("#fAmount").value ? +$("#fAmount").value : null};
+    try { await api("/api/bookings", {method: "POST", body: JSON.stringify(body)}); e.target.reset(); toast("예약을 추가했어요. 예약완료 알림톡은 다음 동기화 때 나가요"); loadBookings(); }
+    catch (err) { toast(err.message); }
+  }
+});
+
+(async () => {
+  try { META = await api("/api/meta"); } catch (e) { toast(e.message); return; }
+  $("#studio").textContent = META.studio; document.title = `${META.studio} 예약 관리`;
+  $("#dryBanner").hidden = !META.dry_run;
+  $("#fRoom").innerHTML = META.rooms.map(r => `<option>${esc(r)}</option>`).join("");
+  RULES = await api("/api/rules").catch(() => []);
+  const start = location.hash.slice(1);
+  show(LOADERS[start] ? start : "dashboard");
+  setInterval(() => { if (current === "dashboard") loadDashboard().catch(() => {}); }, 60000);
+})();
+</script>
+</body>
+</html>

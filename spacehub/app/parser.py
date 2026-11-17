@@ -1,10 +1,12 @@
-"""캘린더 일정 제목/설명에서 예약자명, 전화번호, 상품명을 추출한다."""
+"""일정 제목/설명에서 예약자명, 전화번호, 상품명을 추출한다."""
 from __future__ import annotations
 
 import re
 from collections.abc import Sequence
 
-from .models import Booking, CalendarEvent
+from dataclasses import dataclass
+
+from .models import CalendarEvent
 
 PHONE_RE = re.compile(r"(?<!\d)(01[016789])[-.\s]?(\d{3,4})[-.\s]?(\d{4})(?!\d)")
 HANGUL_NAME_RE = re.compile(r"^[가-힣]{2,5}$")
@@ -45,14 +47,21 @@ def _name_from_title(title: str) -> str | None:
     return None
 
 
+@dataclass(frozen=True)
+class ParsedEvent:
+    name: str | None
+    phone: str | None
+    product: str | None
+
+
 def parse_event(
     event: CalendarEvent,
     *,
-    default_product: str,
+    default_product: str | None = None,
     name_keywords: Sequence[str] = ("이름", "예약자", "성함"),
     phone_keywords: Sequence[str] = ("연락처", "전화번호", "전화", "휴대폰"),
     product_keywords: Sequence[str] = ("상품", "패키지"),
-) -> Booking:
+) -> ParsedEvent:
     """설명의 '키워드: 값' 형식을 우선 사용하고, 없으면 제목에서 추출한다."""
     desc = strip_html(event.description)
 
@@ -64,20 +73,4 @@ def parse_event(
     phone = normalize_phone(phone_src or "") or normalize_phone(event.summary) or normalize_phone(desc)
 
     product = _find_keyword(desc, product_keywords) or default_product
-
-    errors = []
-    if not name:
-        errors.append("예약자명 없음")
-    if not phone:
-        errors.append("휴대폰 번호 없음/형식 오류")
-
-    return Booking(
-        event_id=event.id,
-        name=name,
-        phone=phone,
-        product=product,
-        start=event.start,
-        end=event.end,
-        created=event.created,
-        errors=tuple(errors),
-    )
+    return ParsedEvent(name=name, phone=phone, product=product)
