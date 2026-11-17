@@ -5,7 +5,7 @@ from app.config import load_config
 from app.db import Store
 from app.models import Rule
 from app.notifier import notify
-from app.scheduler import dedupe_key, due_time, is_due
+from app.scheduler import dedupe_key, due_time, in_quiet_hours, is_due
 from app.sender import SendError, SolapiSender
 from app.sources import FetchResult
 from app.sync import run_sync
@@ -191,8 +191,10 @@ def test_rules_seed_only_once(cfg, store):
 def test_example_config_loads_and_renders(tmp_path):
     cfg = load_config(str(ROOT / "config.example.yaml"))
     assert [r.id for r in cfg.rules] == ["booking_confirmed", "day_before", "before_end", "cancelled"]
-    assert cfg.resolve_room("B. 밤 패키지 (18-23시)") == "B룸"
-    assert cfg.resolve_room("알 수 없음") == "A룸"
+    assert [r.name for r in cfg.rooms] == ["루프탑 파티룸"]
+    assert cfg.resolve_room("[인원추가무료] 루프탑 감성파티룸") == "루프탑 파티룸"
+    assert cfg.resolve_room("[11월/올나잇] 18시 - 익일 9시") == "루프탑 파티룸"  # 공간이 하나라 모든 상품이 같은 공간
+    assert cfg.quiet_hours == "22:00-08:00"
     for r in cfg.rules:
         render(r.text, {v: "x" for v in VARIABLES})
 
@@ -209,3 +211,27 @@ def test_store_file_roundtrip(tmp_path, cfg):
     s = Store(path, KST)
     s.upsert_booking(raw(), NOW)
     assert len(Store(path, KST).list_bookings(NOW, NOW + timedelta(days=7))) == 1
+
+
+# ---------- 발송 금지 시간 ----------
+
+def test_in_quiet_hours():
+    spec = "22:00-08:00"
+    assert in_quiet_hours(kst(2026, 11, 20, 23), spec, KST)
+    assert in_quiet_hours(kst(2026, 11, 21, 7, 59), spec, KST)
+    assert not in_quiet_hours(kst(2026, 11, 21, 8), spec, KST)
+    assert not in_quiet_hours(kst(2026, 11, 21, 21, 59), spec, KST)
+    assert in_quiet_hours(kst(2026, 11, 21, 13), "12:00-14:00", KST)
+    assert not in_quiet_hours(kst(2026, 11, 21, 3), None, KST)
+
+
+def test_allnight_checkout_notice_waits_until_quiet_hours_end(cfg, store):
+    """올나잇(18시~익일 9시)의 '종료 3시간 전' 안내는 06시가 아니라 금지 시간이 끝나는 08시에 나간다."""
+    cfg.quiet_hours = "22:00-08:00"
+    booking(store, start=kst(2026, 11, 20, 18), end=kst(2026, 11, 21, 9))
+    sender = FakeSender()
+    notify(cfg, store, sender, kst(2026, 11, 20, 18, 5))   # 예약완료 (금지 시간 아님)
+    notify(cfg, store, sender, kst(2026, 11, 21, 6))       # 금지 시간: 보내지 않음
+    assert [s[1] for s in sender.sent] == ["T1"]
+    notify(cfg, store, sender, kst(2026, 11, 21, 8))
+    assert [s[1] for s in sender.sent] == ["T1", "T2"]

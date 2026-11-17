@@ -7,7 +7,7 @@ from datetime import datetime
 from .config import Config
 from .db import Store
 from .parser import mask_phone
-from .scheduler import dedupe_key, is_due
+from .scheduler import dedupe_key, in_quiet_hours, is_due
 from .sender import Sender, SendError
 from .template import TemplateError, build_variables, render
 
@@ -16,6 +16,8 @@ log = logging.getLogger(__name__)
 
 def notify(cfg: Config, store: Store, sender: Sender, now: datetime, seed: bool = False) -> None:
     """seed=True 이면 실제 발송 없이 현재 발송 대상을 'skipped' 로 기록한다 (최초 도입 시 기존 예약에 일괄 발송 방지)."""
+    if not seed and in_quiet_hours(now, cfg.quiet_hours, cfg.timezone):
+        return  # 발송 금지 시간대: 다음 주기에 다시 판정한다 (이용 종료 전이면 금지 시간이 끝난 뒤 발송)
     rules = [r for r in store.rules() if r.enabled]
     for booking in store.bookings_ending_after(now):
         for rule in rules:

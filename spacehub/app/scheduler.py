@@ -41,6 +41,17 @@ def is_due(rule: Rule, booking: Booking, now: datetime, tz: ZoneInfo) -> bool:
     return due is not None and due <= now < booking.end
 
 
+def in_quiet_hours(now: datetime, spec: str | None, tz: ZoneInfo) -> bool:
+    """발송 금지 시간대인지. "22:00-08:00" 처럼 자정을 넘기는 구간도 된다."""
+    if not spec:
+        return False
+    from .config import parse_quiet_hours
+
+    start, end = parse_quiet_hours(spec)
+    t = now.astimezone(tz).time()
+    return start <= t < end if start < end else (t >= start or t < end)
+
+
 def dedupe_key(rule: Rule, booking: Booking) -> str:
     """중복 발송 방지 키. 시작/종료 기준 규칙은 이용 시각이 바뀌면 다시 발송되도록 시작 시각을 포함한다."""
     if rule.trigger in ("created", "cancelled"):

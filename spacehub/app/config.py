@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from datetime import time
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -29,6 +30,7 @@ class Config:
     poll_interval_seconds: int = 300
     max_attempts: int = 3
     dry_run: bool = True
+    quiet_hours: str | None = None  # "22:00-08:00": 이 시간에는 보내지 않고 끝난 뒤 보낸다
     feed_token: str = ""
     public_url: str = "http://localhost:8000"
 
@@ -50,6 +52,11 @@ class Config:
             if room.name in joined or any(k in joined for k in room.keywords):
                 return room.name
         return self.rooms[0].name
+
+
+def parse_quiet_hours(spec: str) -> tuple[time, time]:
+    a, b = (s.strip() for s in spec.split("-"))
+    return time.fromisoformat(a), time.fromisoformat(b)
 
 
 def parse_rule(r: dict) -> Rule:
@@ -80,6 +87,8 @@ def load_config(path: str) -> Config:
     tz = ZoneInfo(raw.pop("timezone", "Asia/Seoul"))
 
     cfg = Config(rooms=rooms, rules=rules, timezone=tz, **raw)
+    if cfg.quiet_hours:
+        parse_quiet_hours(cfg.quiet_hours)  # 형식 오류는 시작할 때 알린다
     cfg.admin_password = os.environ.get("ADMIN_PASSWORD", "")
     cfg.imap_password = os.environ.get("IMAP_PASSWORD", "")
     cfg.solapi_api_key = os.environ.get("SOLAPI_API_KEY", "")

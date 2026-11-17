@@ -8,16 +8,18 @@ timezone: Asia/Seoul
 db_path: spacehub.db
 poll_interval_seconds: 300     # 5분마다 채널 확인 + 알림톡 발송
 max_attempts: 3                # 알림톡 실패 시 재시도 포함 최대 시도 횟수
+quiet_hours: "22:00-08:00"     # 이 시간에는 알림톡을 보내지 않고 끝난 뒤(08:00) 보냄. 끄려면 지움
 dry_run: true                  # true: 실제 발송 없이 로그만 남김
 public_url: "http://localhost:8000"
 feed_token: ""                 # 마감용 캘린더 주소에 쓸 임의 문자열 (예: python -c "import secrets;print(secrets.token_urlsafe(16))")
 
 # 공간. 상품명/공간명에 keywords 가 들어 있으면 그 공간으로 분류합니다. 못 찾으면 첫 번째 공간.
+# 스튜디오버디는 공간이 하나다 (네이버 상품: 올데이 11-24시, 올나잇 18시-익일 9시, 평일 11-17시/18-24시,
+# 시즌 상품 / 스페이스클라우드: 루프탑 감성파티룸 BUDDY NIGHT). 모든 상품이 같은 공간이므로 채널이 달라도
+# 시간이 겹치면 중복 예약으로 표시된다. 공간이 늘어나면 아래에 추가하고 keywords 로 구분한다.
 rooms:
-  - name: A룸
-    keywords: [A룸, "A.", 낮 패키지]
-  - name: B룸
-    keywords: [B룸, "B.", 밤 패키지]
+  - name: 루프탑 파티룸
+    keywords: [루프탑, BUDDY, 버디]
 
 sources:
   # 네이버 예약, 스페이스클라우드 예약 알림 메일 읽기 (IMAP)
