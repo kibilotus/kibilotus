@@ -10,6 +10,8 @@ DATE_RE = re.compile(r"(\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s
 TIME_RE = re.compile(r"(오전|오후)?\s*(\d{1,2})\s*(?::\s*(\d{2})|시(?:\s*(\d{1,2})\s*분)?)")
 AMOUNT_RE = re.compile(r"(\d[\d,]*)\s*원")
 SEP_RE = re.compile(r"^[\s:：\-|]*")
+# 기간 구분자: "~" 또는 앞뒤에 공백이 있는 대시 (스페이스클라우드: "2026/12/19 18시 - 2026/12/20 09시")
+RANGE_SEP_RE = re.compile(r"\s*~\s*|\s+[-–—]\s+")
 
 
 def strip_html(text: str) -> str:
@@ -59,10 +61,13 @@ def _to_date(m: re.Match) -> date:
 
 
 def parse_period(text: str, tz: ZoneInfo) -> tuple[datetime, datetime] | None:
-    """'2026.11.20.(목) 오후 2:00 ~ 오후 4:00', '2026-11-20 14:00~2026-11-21 02:00' 같은 이용 기간을 해석한다."""
-    left, sep, right = text.partition("~")
+    """'2026.11.20.(목) 오후 2:00 ~ 오후 4:00', '2026/12/19 18시 - 2026/12/20 09시' 같은 이용 기간을 해석한다."""
+    sep = RANGE_SEP_RE.search(text)
+    if not sep:
+        return None
+    left, right = text[:sep.start()], text[sep.end():]
     d1 = DATE_RE.search(left)
-    if not d1 or not sep:
+    if not d1:
         return None
     t1m = TIME_RE.search(left[d1.end():])
     d2 = DATE_RE.search(right)

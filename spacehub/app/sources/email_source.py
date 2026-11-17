@@ -27,11 +27,14 @@ DEFAULT_LABELS = {
     "reservation_no": ["예약번호", "예약 번호", "주문번호"],
     "name": ["예약자명", "예약자", "이용자명", "이용자", "고객명", "이름"],
     "phone": ["예약자 연락처", "연락처", "전화번호", "휴대폰번호", "휴대폰"],
-    "period": ["이용일시", "이용 일시", "예약일시", "예약 일시", "이용시간", "일시"],
-    "product": ["상품명", "예약상품", "상품", "공간명", "공간"],
+    "period": ["이용일시", "이용 일시", "예약일시", "예약 일시", "이용시간", "예약내용", "일시"],
+    "product": ["상품명", "예약상품", "예약공간", "상품", "공간명", "공간"],
     "amount": ["결제금액", "결제 금액", "총 금액", "금액"],
 }
 DEFAULT_CANCEL_KEYWORDS = ["취소"]
+# 제목에 '취소'가 없을 때 본문 문구로 취소 메일을 알아본다.
+# 예약완료 메일 본문에도 "취소하기를 눌러 취소환불처리..." 같은 안내가 있으므로 '취소' 한 단어로 판단하면 안 된다.
+DEFAULT_CANCEL_BODY_KEYWORDS = ["예약이 취소되었습니다", "예약취소가 완료", "예약 취소가 완료"]
 DEFAULT_IGNORE_KEYWORDS = ["리뷰", "정산", "문의"]
 
 
@@ -53,7 +56,8 @@ def parse_mail(channel: str, subject: str, body: str, ch_cfg: dict, tz: ZoneInfo
     product = label_value(text, labels["product"])
     amount = parse_amount(label_value(text, labels["amount"]))
     period = parse_period(period_text, tz) if period_text else None
-    cancelled = any(k in subject for k in ch_cfg.get("cancel_keywords", DEFAULT_CANCEL_KEYWORDS))
+    cancelled = any(k in subject for k in ch_cfg.get("cancel_keywords", DEFAULT_CANCEL_KEYWORDS)) or any(
+        k in text for k in ch_cfg.get("cancel_body_keywords", DEFAULT_CANCEL_BODY_KEYWORDS))
 
     if not reservation_no and not period:
         if cancelled or "예약" in subject:

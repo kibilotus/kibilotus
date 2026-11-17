@@ -39,6 +39,13 @@ sources:
         from: [spacecloud.kr]           # TODO: 실제 발신 주소로 좁히기
         cancel_keywords: [취소]
         ignore_keywords: [리뷰, 정산, 문의, 광고]
+        # 호스트 예약완료 메일의 '예약/결제 정보' 표 항목 이름 (2026-11 샘플 기준)
+        labels:
+          period: [예약내용]                 # 2026/12/19 18시 - 2026/12/20 09시
+          product: [예약공간]
+          name: [예약자명]
+          phone: [예약자 연락처, 연락처, 휴대폰]   # TODO: 메일 아래쪽 항목 확인 필요
+          amount: [최종 결제금액, 총 결제금액, 결제금액, 공간사용료]
 
   # 스페이스클라우드 호스트센터 '캘린더 내보내기' 주소 (iCal)
   spacecloud_ical:

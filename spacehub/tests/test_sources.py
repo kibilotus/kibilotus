@@ -131,3 +131,50 @@ def test_parse_ics():
     a, c = items
     assert (a.external_id, a.name, a.phone, a.room, a.start) == ("555", "한지민", "01088887777", "B룸", kst(2026, 11, 21, 10))
     assert (c.external_id, c.status, c.start) == ("gone", "cancelled", kst(2026, 11, 23, 10))
+
+
+# 스페이스클라우드 호스트 '예약 완료' 메일 (2026-11 실제 샘플의 구조. 개인정보는 가상 값으로 바꿈)
+SPACECLOUD_CONFIRM_HTML = """
+<div>홍호스트 호스트님,<br>[인원추가무료] 루프탑 감성파티룸, BUDDY NIGHT 의<br>예약이 완료되었습니다.</div>
+<p>호스트님의 사정으로 예약을 취소하는 경우,<br>MY &gt; 예약 상세 페이지에서 취소하기를 눌러 취소환불처리를 진행하실 수 있습니다.</p>
+<h3>예약/결제 정보</h3>
+<table>
+<tr><td>예약공간</td><td>[인원추가무료] 루프탑 감성파티룸</td></tr>
+<tr><td>예약내용</td><td>2026/12/19 18시 - 2026/12/20 09시</td></tr>
+<tr><td>예약인원</td><td>5명</td></tr>
+<tr><td>예약옵션</td><td>바베큐전기그릴</td></tr>
+<tr><td>요청사항</td><td></td></tr>
+<tr><td>예약자명</td><td>이가상</td></tr>
+<tr><td>결제수단</td><td>신용카드</td></tr>
+<tr><td>공간사용료</td><td>₩430,000</td></tr>
+<tr><td>쿠폰적용</td><td>-₩5,000</td></tr>
+</table>
+"""
+
+SC_CFG = {"labels": {"period": ["예약내용"], "product": ["예약공간"], "name": ["예약자명"],
+                     "amount": ["최종 결제금액", "총 결제금액", "결제금액", "공간사용료"]}}
+
+
+def test_parse_spacecloud_confirm_mail():
+    b = parse_mail("spacecloud", "[스페이스클라우드] 예약이 완료되었습니다", SPACECLOUD_CONFIRM_HTML, SC_CFG, KST, resolve)
+    assert b.status == "confirmed"  # 본문의 '취소하기를 눌러...' 안내 때문에 취소로 보면 안 된다
+    assert (b.name, b.product, b.amount) == ("이가상", "[인원추가무료] 루프탑 감성파티룸", 430000)
+    assert (b.start, b.end) == (kst(2026, 12, 19, 18), kst(2026, 12, 20, 9))
+    assert b.phone is None  # 샘플에서 보이는 부분에는 연락처가 없다
+    assert b.external_id.startswith("h-")  # 예약번호가 없어 예약자+이용일시로 식별
+
+
+def test_spacecloud_default_labels_without_config():
+    b = parse_mail("spacecloud", "예약 완료", SPACECLOUD_CONFIRM_HTML, {}, KST, resolve)
+    assert (b.start, b.product) == (kst(2026, 12, 19, 18), "[인원추가무료] 루프탑 감성파티룸")
+
+
+def test_spacecloud_cancel_by_body_matches_confirm():
+    confirm = parse_mail("spacecloud", "예약 완료", SPACECLOUD_CONFIRM_HTML, SC_CFG, KST, resolve)
+    cancel_html = SPACECLOUD_CONFIRM_HTML.replace("예약이 완료되었습니다", "예약이 취소되었습니다")
+    cancel = parse_mail("spacecloud", "[스페이스클라우드] 알림", cancel_html, SC_CFG, KST, resolve)
+    assert cancel.status == "cancelled" and cancel.external_id == confirm.external_id
+
+
+def test_parse_period_dash_does_not_split_iso_dates():
+    assert parse_period("2026-12-19 18:00 - 2026-12-20 09:00", KST) == (kst(2026, 12, 19, 18), kst(2026, 12, 20, 9))
