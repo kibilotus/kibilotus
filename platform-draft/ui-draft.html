@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공간대여 통합관리 초안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 좌측 내비게이션 + 우측 작업 영역. 휴대폰 폭에서는 내비게이션이 상단 가로 스크롤 탭으로 바뀐다 */
+:root{
+  color-scheme:light;
+  --bg:#f2f4f3; --surface:#ffffff; --sunken:#f7f8f8; --line:#dbe1de; --fg:#16201c; --muted:#5d6a65;
+  --accent:#1f6f5c; --accent-soft:#e0eee9;
+  --naver:#0b9a4a; --naver-soft:#e2f4e9;
+  --sc:#6a4fd8; --sc-soft:#ece8fb;
+  --direct:#2c66c4; --direct-soft:#e3ecfa;
+  --ok:#1f8a4c; --ok-soft:#e3f4ea; --warn:#a86400; --warn-soft:#fbf0dc; --bad:#c2372f; --bad-soft:#fbe6e4;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1412; --surface:#182019; --sunken:#131a17; --line:#2a3530; --fg:#e6eeea; --muted:#98a7a1;
+  --accent:#5cc4a6; --accent-soft:#1b3830;
+  --naver:#3fcf7d; --naver-soft:#16331f; --sc:#a593ff; --sc-soft:#262046; --direct:#7aa7f0; --direct-soft:#1a2740;
+  --ok:#55c98a; --ok-soft:#163222; --warn:#e3a54a; --warn-soft:#382a12; --bad:#ef7b72; --bad-soft:#3d1d1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1412; --surface:#182019; --sunken:#131a17; --line:#2a3530; --fg:#e6eeea; --muted:#98a7a1;
+  --accent:#5cc4a6; --accent-soft:#1b3830;
+  --naver:#3fcf7d; --naver-soft:#16331f; --sc:#a593ff; --sc-soft:#262046; --direct:#7aa7f0; --direct-soft:#1a2740;
+  --ok:#55c98a; --ok-soft:#163222; --warn:#e3a54a; --warn-soft:#382a12; --bad:#ef7b72; --bad-soft:#3d1d1a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14.5px;line-height:1.55}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-size:19px;font-weight:700}
+h2{font-size:16px;font-weight:600}
+h3{font-size:14px;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}
+nav.side{background:var(--surface);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{padding:4px 10px 14px;display:grid;gap:2px}
+.brand b{font-size:16px}
+.navbtn{appearance:none;border:0;background:none;font:inherit;color:var(--muted);text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.navbtn:hover{background:var(--sunken);color:var(--fg)}
+.navbtn[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.navcount{font-size:11.5px;background:var(--bad);color:#fff;border-radius:999px;padding:0 7px}
+.side .foot{margin-top:auto;padding:10px;border-top:1px solid var(--line);display:grid;gap:8px}
+main{padding-inline:28px;padding-block:22px 56px;display:grid;gap:18px;align-content:start;min-width:0}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  nav.side{position:sticky;top:0;z-index:5;height:auto;flex-direction:row;overflow-x:auto;padding:8px 16px;border-right:0;border-bottom:1px solid var(--line)}
+  .brand,.side .foot{display:none}
+  .navbtn{white-space:nowrap}
+  main{padding-inline:16px}
+}
+
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
+.demo{font-size:12px;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:6px 10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:14px;min-width:0}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.ok{color:var(--ok);background:var(--ok-soft)} .warn{color:var(--warn);background:var(--warn-soft)} .bad{color:var(--bad);background:var(--bad-soft)}
+.ch{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.ch.naver{color:var(--naver);background:var(--naver-soft)} .ch.sc{color:var(--sc);background:var(--sc-soft)} .ch.direct{color:var(--direct);background:var(--direct-soft)}
+.oss{display:none;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px dashed var(--accent);border-radius:5px;padding:1px 6px;white-space:nowrap}
+body.show-oss .oss{display:inline-block}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:2px}
+.kpi .v{font-size:22px;font-weight:700;font-family:var(--sans);font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+
+/* 타임라인 */
+.tl-wrap{overflow-x:auto}
+.tl{min-width:640px;display:grid;grid-template-columns:96px 1fr;row-gap:10px}
+.tl-axis{position:relative;height:18px;font-size:11px;color:var(--muted)}
+.tl-axis span{position:absolute;transform:translateX(-50%)}
+.tl-room{font-size:13px;font-weight:600;align-self:center}
+.tl-track{position:relative;height:44px;background:var(--sunken);border-radius:8px;background-image:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px calc(100%/15))}
+.tl-b{position:absolute;top:4px;bottom:4px;border-radius:6px;padding:3px 8px;font-size:12px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-left:3px solid currentColor}
+.tl-b.naver{color:var(--naver);background:var(--naver-soft)} .tl-b.sc{color:var(--sc);background:var(--sc-soft)} .tl-b.direct{color:var(--direct);background:var(--direct-soft)}
+.tl-b b{color:var(--fg);font-weight:600}
+.tl-b.conflict{outline:2px solid var(--bad);outline-offset:-2px}
+.now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--bad)}
+
+.issue{display:grid;gap:4px;border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:10px 12px}
+.issue.w{border-left-color:var(--warn)}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--sunken)}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+
+/* 캘린더 */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;font:inherit;font-size:13px;padding:6px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.week-wrap{overflow-x:auto}
+.week{display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:8px;min-width:860px}
+.day{background:var(--sunken);border-radius:10px;padding:8px;display:grid;gap:6px;align-content:start;min-height:220px}
+.day h3{font-size:13px;display:flex;justify-content:space-between}
+.day.today{outline:2px solid var(--accent)}
+.ev{border-radius:7px;padding:6px 8px;font-size:12px;line-height:1.35;border-left:3px solid currentColor;display:grid;gap:1px}
+.ev.naver{color:var(--naver);background:var(--naver-soft)} .ev.sc{color:var(--sc);background:var(--sc-soft)} .ev.direct{color:var(--direct);background:var(--direct-soft)}
+.ev b{color:var(--fg)} .ev span{color:var(--muted)}
+.ev.conflict{outline:2px solid var(--bad);outline-offset:-2px}
+
+/* 테이블 */
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.msgs{display:flex;gap:4px}
+.msgs i{font-style:normal;font-size:11px;padding:1px 6px;border-radius:4px}
+
+/* 채널 연동 */
+.channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.chcard{border-top:4px solid var(--c)}
+.chcard.naver{--c:var(--naver)} .chcard.sc{--c:var(--sc)} .chcard.direct{--c:var(--direct)} .chcard.soon{--c:var(--line)}
+.method{display:grid;gap:6px}
+.method label{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:13px}
+.method label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.method input{margin-top:3px;accent-color:var(--accent)}
+.method small{display:block;color:var(--muted);font-size:12px}
+.method .lock{opacity:.6}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.copy{display:flex;gap:6px}
+.copy input{flex:1;min-width:0;font-family:var(--mono);font-size:12px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+textarea{width:100%;min-height:210px;resize:vertical;line-height:1.6}
+.btn{appearance:none;font:inherit;font-weight:600;font-size:13.5px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.sm{padding:5px 10px;font-size:12.5px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
+.switch input{appearance:none;width:36px;height:20px;border-radius:999px;background:var(--line);position:relative;padding:0;border:0;cursor:pointer;flex:none}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);transition:left .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{left:19px}
+.note{font-size:12.5px;color:var(--muted);background:var(--sunken);border-radius:8px;padding:8px 10px}
+
+/* 알림톡 */
+.rules{display:grid;gap:8px}
+.rule{appearance:none;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.rule[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.phone{background:#bacee0;border-radius:14px;padding:14px;display:grid;gap:8px}
+:root[data-theme="dark"] .phone{background:#2b3a48}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .phone{background:#2b3a48}}
+.bubble{background:var(--surface);border-radius:4px 14px 14px 14px;overflow:hidden;max-width:300px}
+.bubble .head{background:#fee500;color:#1d1d1d;font-weight:700;font-size:13px;padding:8px 12px}
+.bubble .body{padding:12px;font-size:13px;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+.bubble mark{background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:0 2px}
+
+/* 오픈소스 구성 */
+.arch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:stretch}
+@media (max-width:900px){.arch{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.arch{grid-template-columns:1fr}}
+.layer{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;align-content:start;background:var(--sunken)}
+.layer h3{font-size:12px;letter-spacing:.04em;color:var(--muted)}
+.mod{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;display:grid;gap:3px}
+.mod .src{font-family:var(--mono);font-size:11px;color:var(--accent)}
+.fit{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px}
+.fit.use{color:var(--ok);background:var(--ok-soft)} .fit.ref{color:var(--warn);background:var(--warn-soft)} .fit.no{color:var(--muted);background:var(--sunken);border:1px solid var(--line)}
+td.wrap{white-space:normal;min-width:220px}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13.5px;max-width:calc(100% - 32px);z-index:10}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="메뉴">
+    <div class="brand"><b>스페이스허브 <span class="muted small">(가칭)</span></b><span class="muted small">스튜디오버디</span></div>
+    <button class="navbtn" data-view="dashboard" aria-current="page">대시보드</button>
+    <button class="navbtn" data-view="calendar">통합 캘린더</button>
+    <button class="navbtn" data-view="bookings">예약 목록</button>
+    <button class="navbtn" data-view="channels">채널 연동 <span class="navcount">1</span></button>
+    <button class="navbtn" data-view="alimtalk">자동 알림톡</button>
+    <button class="navbtn" data-view="stack">오픈소스 구성</button>
+    <div class="foot">
+      <label class="switch" for="ossToggle"><input type="checkbox" id="ossToggle"> 오픈소스 매핑 표시</label>
+      <span class="muted small">각 화면에 어떤 오픈소스를 쓰는지 표시해요</span>
+    </div>
+  </nav>
+
+  <main>
+    <p class="demo">UI 초안입니다. 예약자, 금액, 발송 기록은 모두 예시 데이터예요.</p>
+
+    <!-- 대시보드 -->
+    <section id="v-dashboard" class="view" style="display:grid;gap:18px">
+      <div class="top">
+        <div><h1>오늘, 11월 17일 화요일</h1><p class="muted small">3개 채널에서 들어온 예약을 한곳에서 봐요</p></div>
+        <span class="oss">자체 개발 · FastAPI</span>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span class="s">오늘 예약</span><span class="v num">5건</span><span class="s">네이버 2 · 스페이스클라우드 2 · 직접 1</span></div>
+        <div class="kpi"><span class="s">이번 주 매출 (예정 포함)</span><span class="v num">₩1,284,000</span><span class="s">지난주보다 <span class="num">+12%</span></span></div>
+        <div class="kpi"><span class="s">이번 주 알림톡</span><span class="v num">42건</span><span class="s">실패 <span class="num">1</span>건 · 문자 대체 <span class="num">2</span>건</span></div>
+        <div class="kpi"><span class="s">채널 연동</span><span class="v">정상 2 · 확인 1</span><span class="s">스페이스클라우드 동기화 지연</span></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><h2>오늘 공간별 예약</h2><div class="legend"><span><i class="dot" style="color:var(--naver)"></i>네이버</span><span><i class="dot" style="color:var(--sc)"></i>스페이스클라우드</span><span><i class="dot" style="color:var(--direct)"></i>직접 예약</span></div></div>
+          <div class="tl-wrap"><div class="tl" id="timeline"></div></div>
+        </div>
+        <div style="display:grid;gap:18px">
+          <div class="card">
+            <div class="card-h"><h2>확인이 필요해요</h2><span class="pill bad"><span class="dot"></span>2건</span></div>
+            <div class="issue"><strong class="small">중복 예약 · 11/18(수) B룸 19:00~21:00</strong><span class="small muted">네이버 <b>김도윤</b>님과 스페이스클라우드 <b>한지민</b>님 예약이 겹쳐요. 한쪽 채널에서 취소하거나 공간을 옮겨주세요.</span></div>
+            <div class="issue w"><strong class="small">전화번호 없음 · 11/19(목) A룸</strong><span class="small muted">스페이스클라우드 예약에 연락처가 없어 알림톡을 보내지 못했어요.</span></div>
+          </div>
+          <div class="card">
+            <h2>이번 달 채널별 예약</h2>
+            <div class="bar"><i style="width:48%;background:var(--naver)"></i><i style="width:37%;background:var(--sc)"></i><i style="width:15%;background:var(--direct)"></i></div>
+            <div class="legend"><span><i class="dot" style="color:var(--naver)"></i>네이버 <b class="num">48%</b></span><span><i class="dot" style="color:var(--sc)"></i>스페이스클라우드 <b class="num">37%</b></span><span><i class="dot" style="color:var(--direct)"></i>직접 <b class="num">15%</b></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 통합 캘린더 -->
+    <section id="v-calendar" class="view" hidden style="display:grid;gap:14px">
+      <div class="top"><div><h1>통합 캘린더</h1><p class="muted small">11월 17일 ~ 23일 · 모든 채널 예약을 겹쳐서 보여줘요</p></div><span class="oss">FullCalendar(MIT) 적용 예정</span></div>
+      <div class="card">
+        <div class="card-h">
+          <div class="chips" id="calCh"></div>
+          <div class="chips" id="calRoom"></div>
+        </div>
+        <div class="week-wrap"><div class="week" id="week"></div></div>
+      </div>
+    </section>
+
+    <!-- 예약 목록 -->
+    <section id="v-bookings" class="view" hidden style="display:grid;gap:14px">
+      <div class="top"><div><h1>예약 목록</h1><p class="muted small">채널에서 가져온 예약과 알림톡 발송 상태</p></div><span class="oss">자체 개발 · PostgreSQL</span></div>
+      <div class="card"><div class="tablewrap"><table>
+        <thead><tr><th>채널</th><th>예약자</th><th>연락처</th><th>공간 · 상품</th><th>이용 일시</th><th class="num">금액</th><th>상태</th><th>알림톡</th></tr></thead>
+        <tbody id="bookRows"></tbody>
+      </table></div></div>
+    </section>
+
+    <!-- 채널 연동 -->
+    <section id="v-channels" class="view" hidden style="display:grid;gap:14px">
+      <div class="top"><div><h1>채널 연동</h1><p class="muted small">예약을 어떻게 가져오고, 다른 채널 예약 시간을 어떻게 막을지 정해요</p></div></div>
+      <div class="channels">
+        <div class="card chcard naver">
+          <div class="card-h"><h2>네이버 예약</h2><span class="pill ok"><span class="dot"></span>정상 · 3분 전</span></div>
+          <div class="method">
+            <label><input type="radio" name="nv" checked> <span>예약 알림 메일 읽기 <small>네이버 예약 알림 메일을 Gmail로 받아 자동으로 읽어요. 신규·변경·취소 반영</small></span></label>
+            <label class="lock"><input type="radio" name="nv" disabled> <span>공식 파트너 연동 <small>네이버 제휴 심사가 필요해요. 제휴 업체를 통해 연결할 수도 있어요</small></span></label>
+          </div>
+          <dl class="kv"><dt>받는 메일</dt><dd>studiobuddy.booking@gmail.com (예시)</dd><dt>이번 달</dt><dd class="num">54건 가져옴 · 읽기 실패 0건</dd></dl>
+          <label class="switch" for="nvBlock"><input type="checkbox" id="nvBlock"> 다른 채널 예약 시 네이버 시간 자동 마감</label>
+          <p class="note">네이버는 외부에서 시간을 막는 공개 기능이 없어요. 지금은 중복이 생기면 대시보드에서 알려드리고, 직접 마감해야 해요.</p>
+          <span class="oss">자체 개발 메일 파서 · 참고: djmonnar/sky 동기화 규칙</span>
+        </div>
+        <div class="card chcard sc">
+          <div class="card-h"><h2>스페이스클라우드</h2><span class="pill warn"><span class="dot"></span>동기화 지연 · 42분 전</span></div>
+          <div class="method">
+            <label><input type="radio" name="sc" checked> <span>캘린더 주소(iCal) + 알림 메일 <small>호스트센터 '캘린더 내보내기' 주소로 일정을, 알림 메일로 연락처를 가져와요</small></span></label>
+            <label><input type="radio" name="sc"> <span>예약 알림 메일만 <small>캘린더 주소 없이 메일만으로 가져와요</small></span></label>
+          </div>
+          <label class="small" for="scIcal" style="display:grid;gap:4px">호스트센터 캘린더 주소
+            <span class="copy"><input id="scIcal" value="https://… /calendar/export/…ics (예시)" readonly><button class="btn sm" data-toast="캘린더 주소를 다시 확인할게요 (예시)">다시 확인</button></span>
+          </label>
+          <label class="switch" for="scBlock"><input type="checkbox" id="scBlock" checked> 다른 채널 예약 시 스페이스클라우드 시간 자동 마감</label>
+          <p class="note">자동 마감은 스페이스클라우드가 외부 캘린더 주소를 받아주는 경우에만 가능해요. 아래 주소를 호스트센터에 등록하세요.</p>
+          <span class="copy"><input id="blockFeed" value="https://spacehub.example/feed/buddy-7f3a.ics" readonly><button class="btn sm" id="copyFeed">복사</button></span>
+          <span class="oss">ical.js(MPL-2.0) · 참고: Jaemnani 설계(iCal 읽기/마감 피드)</span>
+        </div>
+        <div class="card chcard direct">
+          <div class="card-h"><h2>직접 예약 페이지</h2><span class="pill ok"><span class="dot"></span>운영 중</span></div>
+          <p class="small muted">플랫폼이 만들어 주는 예약 페이지예요. 인스타그램 프로필이나 네이버톡톡에 링크로 걸 수 있어요.</p>
+          <dl class="kv"><dt>주소</dt><dd>spacehub.example/studiobuddy</dd><dt>결제</dt><dd>계좌이체 확인 후 확정 (PG 연동은 다음 단계)</dd></dl>
+          <span class="oss">LibreBooking(GPL-3.0) 예약 규칙 참고</span>
+        </div>
+        <div class="card chcard soon">
+          <div class="card-h"><h2>추가 예정 채널</h2></div>
+          <p class="small muted">아워플레이스, 여기어때 공간대여도 같은 방식(알림 메일 + 캘린더 주소)으로 붙일 수 있어요.</p>
+          <div class="chips"><span class="chip">아워플레이스</span><span class="chip">여기어때</span><span class="chip">카카오 예약</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 자동 알림톡 -->
+    <section id="v-alimtalk" class="view" hidden style="display:grid;gap:14px">
+      <div class="top"><div><h1>자동 알림톡</h1><p class="muted small">어느 채널로 들어온 예약이든 같은 규칙으로 보내요</p></div><span class="oss">솔라피 공식 SDK · 기존 alimtalk 모듈</span></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="rules" id="rules"></div>
+          <div id="ruleEdit" style="display:grid;gap:10px"></div>
+        </div>
+        <div class="card">
+          <h2>미리보기 <span class="muted small" style="font-weight:400">예시 예약자 기준</span></h2>
+          <div class="phone"><div class="bubble"><div class="head" id="pvHead"></div><div class="body" id="pvBody"></div></div></div>
+          <p class="note">채널마다 문구를 다르게 쓰려면 규칙에 '채널' 조건을 추가하면 돼요. 예: 네이버 예약은 보증금 안내 생략.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 오픈소스 구성 -->
+    <section id="v-stack" class="view" hidden style="display:grid;gap:14px">
+      <div class="top"><div><h1>오픈소스 구성</h1><p class="muted small">조사 결과, 네이버·스페이스클라우드·알림톡을 모두 갖춘 오픈소스는 없었어요. 아래처럼 나눠서 조합해요.</p></div></div>
+      <div class="card">
+        <h2>모듈 구성</h2>
+        <div class="arch">
+          <div class="layer"><h3>1. 예약 수집</h3>
+            <div class="mod">네이버 예약 메일 파서<span class="src">자체 개발 (Gmail API)</span></div>
+            <div class="mod">스페이스클라우드 iCal 리더<span class="src">ical.js / icalendar</span></div>
+            <div class="mod">직접 예약 페이지<span class="src">자체 개발</span></div>
+          </div>
+          <div class="layer"><h3>2. 예약 통합</h3>
+            <div class="mod">예약 저장 · 중복 감지<span class="src">PostgreSQL, 자체 개발</span></div>
+            <div class="mod">신규/변경/취소 동기화 규칙<span class="src">참고: djmonnar/sky</span></div>
+            <div class="mod">마감용 iCal 피드 제공<span class="src">참고: Jaemnani 설계</span></div>
+          </div>
+          <div class="layer"><h3>3. 자동 알림</h3>
+            <div class="mod">발송 시점 계산 · 재시도<span class="src">기존 alimtalk 모듈</span></div>
+            <div class="mod">알림톡 · 문자 대체 발송<span class="src">solapi-python SDK</span></div>
+          </div>
+          <div class="layer"><h3>4. 관리 화면</h3>
+            <div class="mod">관리자 웹 (이 화면)<span class="src">Next.js 또는 React</span></div>
+            <div class="mod">통합 캘린더<span class="src">FullCalendar (MIT)</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>검토한 오픈소스</h2>
+        <div class="tablewrap"><table>
+          <thead><tr><th>프로젝트</th><th>판단</th><th>쓸 부분</th><th>라이선스</th></tr></thead>
+          <tbody id="ossRows"></tbody>
+        </table></div>
+        <p class="note">라이선스가 표시되지 않은 저장소는 코드를 그대로 가져다 쓸 수 없어요. 설계 아이디어만 참고하고 코드는 새로 작성해요.</p>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const CH = {naver:"네이버", sc:"스페이스클라우드", direct:"직접 예약"};
+const ROOMS = ["A룸 · 자연광", "B룸 · 호리존"];
+// 예시 데이터: day 0 = 11/17(화)
+const bookings = [
+  {d:0, room:0, s:11, e:17, ch:"naver", name:"서은수", phone:"010-****-3333", prod:"A. 낮 패키지", amt:180000, st:"확정", msg:["완료","전날"]},
+  {d:0, room:0, s:18, e:22, ch:"direct", name:"오현경", phone:"010-****-9021", prod:"B. 밤 패키지", amt:150000, st:"확정", msg:["완료","전날"]},
+  {d:0, room:1, s:10, e:13, ch:"sc", name:"박서준", phone:"010-****-7702", prod:"시간제 3시간", amt:90000, st:"확정", msg:["완료","전날"]},
+  {d:0, room:1, s:14, e:18, ch:"naver", name:"최유나", phone:"010-****-5530", prod:"시간제 4시간", amt:120000, st:"확정", msg:["완료","전날"]},
+  {d:0, room:1, s:19, e:23, ch:"sc", name:"정하늘", phone:"010-****-1204", prod:"B. 밤 패키지", amt:150000, st:"확정", msg:["완료"]},
+  {d:1, room:0, s:11, e:17, ch:"sc", name:"이지우", phone:"010-****-1188", prod:"A. 낮 패키지", amt:180000, st:"확정", msg:["완료"]},
+  {d:1, room:1, s:19, e:21, ch:"naver", name:"김도윤", phone:"010-****-2210", prod:"시간제 2시간", amt:60000, st:"확정", msg:["완료"], conflict:true},
+  {d:1, room:1, s:18, e:22, ch:"sc", name:"한지민", phone:"010-****-8841", prod:"B. 밤 패키지", amt:150000, st:"확정", msg:["완료"], conflict:true},
+  {d:2, room:0, s:11, e:17, ch:"sc", name:"윤가람", phone:"", prod:"A. 낮 패키지", amt:180000, st:"확정", msg:["실패"]},
+  {d:3, room:1, s:13, e:16, ch:"direct", name:"문채원", phone:"010-****-6672", prod:"시간제 3시간", amt:90000, st:"입금 대기", msg:[]},
+  {d:4, room:0, s:11, e:17, ch:"naver", name:"강민호", phone:"010-****-4410", prod:"A. 낮 패키지", amt:180000, st:"확정", msg:["완료"]},
+  {d:4, room:0, s:18, e:22, ch:"naver", name:"배수아", phone:"010-****-3017", prod:"B. 밤 패키지", amt:150000, st:"취소", msg:["완료","취소"]},
+  {d:5, room:1, s:10, e:16, ch:"sc", name:"임도현", phone:"010-****-9930", prod:"시간제 6시간", amt:180000, st:"확정", msg:["완료"]},
+  {d:5, room:0, s:11, e:17, ch:"naver", name:"조은비", phone:"010-****-5821", prod:"A. 낮 패키지", amt:180000, st:"확정", msg:["완료"]},
+  {d:6, room:0, s:12, e:15, ch:"direct", name:"신예린", phone:"010-****-0045", prod:"시간제 3시간", amt:90000, st:"확정", msg:["완료"]},
+];
+const DAYS = ["17(화)","18(수)","19(목)","20(금)","21(토)","22(일)","23(월)"];
+const hh = h => String(h).padStart(2,"0") + ":00";
+const $ = s => document.querySelector(s);
+
+/* 대시보드 타임라인 (09~24시) */
+function renderTimeline(){
+  const S = 9, E = 24, pct = h => (h - S) / (E - S) * 100;
+  let html = `<div></div><div class="tl-axis">${[9,12,15,18,21,24].map(h => `<span style="left:${pct(h)}%">${h}시</span>`).join("")}</div>`;
+  ROOMS.forEach((r, i) => {
+    const items = bookings.filter(b => b.d === 0 && b.room === i && b.st !== "취소").map(b =>
+      `<div class="tl-b ${b.ch}" style="left:${pct(b.s)}%;width:${pct(b.e) - pct(b.s)}%" title="${CH[b.ch]} · ${b.name}"><b>${b.name}</b> ${hh(b.s)}~${hh(b.e)}</div>`).join("");
+    html += `<div class="tl-room">${r}</div><div class="tl-track">${items}<div class="now" style="left:${pct(15.5)}%"></div></div>`;
+  });
+  $("#timeline").innerHTML = html;
+}
+
+/* 통합 캘린더 */
+let calCh = "all", calRoom = "all";
+function renderCalendar(){
+  $("#calCh").innerHTML = [["all","전체 채널"],...Object.entries(CH)].map(([k,v]) => `<button class="chip" data-cc="${k}" aria-pressed="${calCh===k}">${v}</button>`).join("");
+  $("#calRoom").innerHTML = [["all","모든 공간"],...ROOMS.map((r,i) => [String(i), r.split(" ·")[0]])].map(([k,v]) => `<button class="chip" data-cr="${k}" aria-pressed="${calRoom===k}">${v}</button>`).join("");
+  $("#week").innerHTML = DAYS.map((d, i) => {
+    const evs = bookings.filter(b => b.d === i && b.st !== "취소" && (calCh === "all" || b.ch === calCh) && (calRoom === "all" || String(b.room) === calRoom))
+      .sort((a,b) => a.s - b.s)
+      .map(b => `<div class="ev ${b.ch}${b.conflict ? " conflict" : ""}"><b>${hh(b.s)}~${hh(b.e)} ${b.name}</b><span>${ROOMS[b.room].split(" ·")[0]} · ${CH[b.ch]}</span>${b.conflict ? `<span style="color:var(--bad)">시간 겹침</span>` : ""}</div>`).join("");
+    return `<div class="day${i === 0 ? " today" : ""}"><h3>11/${d}<span class="muted small num">${bookings.filter(b => b.d === i && b.st !== "취소").length}</span></h3>${evs || `<span class="muted small">예약 없음</span>`}</div>`;
+  }).join("");
+}
+
+/* 예약 목록 */
+function renderBookings(){
+  const st = s => s === "확정" ? "ok" : s === "취소" ? "bad" : "warn";
+  const m = x => x === "실패" ? "bad" : x === "취소" ? "warn" : "ok";
+  $("#bookRows").innerHTML = bookings.slice().sort((a,b) => a.d - b.d || a.s - b.s).map(b => `
+    <tr>
+      <td><span class="ch ${b.ch}">${CH[b.ch]}</span></td>
+      <td><strong>${b.name}</strong></td>
+      <td class="num small">${b.phone || `<span class="pill bad">없음</span>`}</td>
+      <td>${ROOMS[b.room].split(" ·")[0]} · ${b.prod}</td>
+      <td class="num">11/${DAYS[b.d]} ${hh(b.s)}~${hh(b.e)}</td>
+      <td class="num" style="text-align:right">₩${b.amt.toLocaleString()}</td>
+      <td><span class="pill ${st(b.st)}"><span class="dot"></span>${b.st}</span></td>
+      <td><div class="msgs">${b.msg.map(x => `<i class="${m(x)}">${x}</i>`).join("") || `<span class="muted small">대기</span>`}</div></td>
+    </tr>`).join("");
+}
+
+/* 자동 알림톡 */
+const SAMPLE = {이름:"서은수", 상품:"A. 낮 패키지 (11-17시)", 이용일시:"2026-11-20(목) 11:00~17:00", 채널:"네이버 예약"};
+const rules = [
+  {id:"r1", name:"예약완료 안내", when:"예약 확정 즉시", on:true, head:"[스튜디오버디] 예약완료 안내",
+   text:"#{이름}님, #{채널}로 예약해주셔서 감사합니다.\n\n■ 예약 상품: #{상품}\n■ 이용 일시: #{이용일시}\n\n▪시설보호를 위하여 청소보증금 5만원을 받고있습니다. 퇴실 후 청소상태 확인 후 환급드립니다.\n\n▪공간 이용안내는 전날 발송드립니다."},
+  {id:"r2", name:"이용 전날 안내", when:"이용 전날 18:00", on:true, head:"[스튜디오버디] 이용 안내",
+   text:"#{이름}님, 내일 이용 예정이신 예약 안내드립니다.\n\n■ 예약 상품: #{상품}\n■ 이용 일시: #{이용일시}\n\n▪입실 비밀번호는 당일 오전에 안내드려요."},
+  {id:"r3", name:"퇴실 안내", when:"이용 종료 3시간 전", on:false, head:"[스튜디오버디] 퇴실 안내",
+   text:"#{이름}님, 이용 종료 3시간 전 안내드립니다.\n\n▪퇴실 전 소품 원위치와 쓰레기 분리배출 부탁드립니다."},
+  {id:"r4", name:"취소 안내", when:"예약 취소 즉시", on:true, head:"[스튜디오버디] 예약취소 안내",
+   text:"#{이름}님, #{이용일시} 예약이 취소되었습니다.\n보증금 환불은 영업일 기준 1~2일 내 처리됩니다."},
+];
+let curRule = "r1";
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function renderRules(){
+  const r = rules.find(x => x.id === curRule);
+  $("#rules").innerHTML = rules.map(x => `<button class="rule" data-rule="${x.id}" aria-current="${x.id === curRule}"><span><strong>${x.name}</strong><br><span class="muted small">${x.when}</span></span><span class="pill ${x.on ? "ok" : ""}" ${x.on ? "" : 'style="color:var(--muted);border:1px solid var(--line)"'}><span class="dot"></span>${x.on ? "발송 중" : "중지됨"}</span></button>`).join("");
+  $("#ruleEdit").innerHTML = `
+    <label class="small" for="ruleText" style="display:grid;gap:6px"><strong>메시지 내용</strong>
+      <textarea id="ruleText">${esc(r.text)}</textarea></label>
+    <div class="chips">${Object.keys(SAMPLE).map(v => `<button class="chip" data-var="${v}" style="font-family:var(--mono);font-size:12px">#{${v}}</button>`).join("")}</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" data-toast="테스트 모드라 로그에만 기록했어요 (예시)">내 번호로 테스트</button><button class="btn primary" data-toast="저장했어요 (예시 화면)">저장하기</button></div>`;
+  preview();
+}
+function preview(){
+  const r = rules.find(x => x.id === curRule);
+  $("#pvHead").textContent = r.head;
+  $("#pvBody").innerHTML = esc(r.text).replace(/#\{([^}]+)\}/g, (m, v) => SAMPLE[v] ? `<mark>${esc(SAMPLE[v])}</mark>` : m);
+}
+
+/* 오픈소스 표 */
+const oss = [
+  ["solapi/solapi-python 외 공식 SDK", "use", "알림톡 발송, 문자 대체 발송, 결과 조회", "저장소에서 확인"],
+  ["LibreBooking/app", "ref", "공간·리소스 예약 규칙(할당량, 대기자) 설계 참고. PHP라 코드는 안 씀", "GPL-3.0"],
+  ["Cal.com (Cal.diy)", "ref", "예약 페이지 UX 참고. 사람 일정 중심이고 워크플로 기능이 빠져 있음", "MIT"],
+  ["Easy!Appointments", "no", "상담·진료형 예약에 맞춰져 있고 공간 대여와 거리가 멂", "GPL-3.0"],
+  ["djmonnar/sky (PR #27)", "ref", "네이버 예약 신규/변경/취소 동기화 규칙", "표시 없음"],
+  ["Jaemnani/instagram_application", "ref", "스페이스클라우드 iCal 읽기 + 마감용 iCal 피드 구조", "표시 없음"],
+  ["gyusika/capatrage", "no", "스페이스클라우드 공개 페이지 수집(시장 조사용). 호스트 예약 정보는 못 가져옴", "표시 없음"],
+];
+const FIT = {use:"그대로 사용", ref:"설계만 참고", no:"사용 안 함"};
+function renderOss(){
+  $("#ossRows").innerHTML = oss.map(([n,f,u,l]) => `<tr><td><strong>${n}</strong></td><td><span class="fit ${f}">${FIT[f]}</span></td><td class="wrap">${u}</td><td class="small">${l}</td></tr>`).join("");
+}
+
+let toastTimer;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2400); }
+
+function show(view){
+  document.querySelectorAll(".navbtn").forEach(b => b.dataset.view === view ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "v-" + view);
+}
+
+document.addEventListener("click", e => {
+  const nav = e.target.closest(".navbtn"); if (nav){ show(nav.dataset.view); history.replaceState(null, "", "#" + nav.dataset.view); return; }
+  const cc = e.target.closest("[data-cc]"); if (cc){ calCh = cc.dataset.cc; return renderCalendar(); }
+  const cr = e.target.closest("[data-cr]"); if (cr){ calRoom = cr.dataset.cr; return renderCalendar(); }
+  const r = e.target.closest("[data-rule]"); if (r){ curRule = r.dataset.rule; return renderRules(); }
+  const v = e.target.closest("[data-var]");
+  if (v){ const ta = $("#ruleText"); ta.setRangeText(`#{${v.dataset.var}}`, ta.selectionStart, ta.selectionEnd, "end"); ta.focus(); ta.dispatchEvent(new Event("input", {bubbles:true})); return; }
+  if (e.target.id === "copyFeed"){
+    const val = $("#blockFeed").value;
+    navigator.clipboard?.writeText(val).then(() => toast("마감용 캘린더 주소를 복사했어요"), () => { $("#blockFeed").select(); toast("주소를 선택했어요. 직접 복사해주세요"); });
+    return;
+  }
+  const t = e.target.closest("[data-toast]"); if (t) toast(t.dataset.toast);
+});
+document.addEventListener("input", e => { if (e.target.id === "ruleText"){ rules.find(x => x.id === curRule).text = e.target.value; preview(); } });
+document.addEventListener("change", e => {
+  if (e.target.id === "ossToggle") document.body.classList.toggle("show-oss", e.target.checked);
+  if (e.target.id === "nvBlock" && e.target.checked){ e.target.checked = false; toast("네이버는 외부에서 시간을 막을 수 없어요. 제휴 연동 후 켤 수 있어요"); }
+});
+
+renderTimeline(); renderCalendar(); renderBookings(); renderRules(); renderOss();
+const start = location.hash.slice(1);
+if (["dashboard","calendar","bookings","channels","alimtalk","stack"].includes(start)) show(start);
+</script>
+</body>
+</html>
