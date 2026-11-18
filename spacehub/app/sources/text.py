@@ -30,7 +30,10 @@ def label_value(text: str, labels: Sequence[str]) -> str | None:
         for i, line in enumerate(lines):
             if not line.startswith(label):
                 continue
-            rest = SEP_RE.sub("", line[len(label):]).strip()
+            after = line[len(label):]
+            if after and not after[0] in " \t:：-|":
+                continue  # '예약자' 라벨이 '예약자관리', '예약자명' 줄에 걸리지 않게 한다
+            rest = SEP_RE.sub("", after).strip()
             if rest:
                 return rest
             nxt = next((ln for ln in lines[i + 1:] if ln), "")
@@ -85,6 +88,18 @@ def parse_period(text: str, tz: ZoneInfo) -> tuple[datetime, datetime] | None:
     if end <= start and not d2:
         end += timedelta(days=1)  # 자정을 넘기는 예약
     return (start, end) if end > start else None
+
+
+def parse_period_from_product(date_text: str, product: str | None, tz: ZoneInfo) -> tuple[datetime, datetime] | None:
+    """이용일에 날짜만 있을 때 상품명의 시간으로 기간을 만든다.
+
+    네이버 예약은 이용일이 '2026. 11. 18.(수)' 처럼 날짜뿐이고, 시간은 상품명 '[평일한정] 11시 - 17시' 에 있다.
+    """
+    d = DATE_RE.search(date_text or "")
+    if not d or not product:
+        return None
+    times = re.sub(r"\[[^\]]*\]", " ", product)  # '[11월/올나잇]' 같은 머리말 제거 (안의 숫자가 시간으로 읽히지 않게)
+    return parse_period(f"{d.group(0)} {times}", tz)
 
 
 def parse_amount(text: str | None) -> int | None:

@@ -182,3 +182,56 @@ def test_spacecloud_cancel_by_body_matches_confirm():
 
 def test_parse_period_dash_does_not_split_iso_dates():
     assert parse_period("2026-12-19 18:00 - 2026-12-20 09:00", KST) == (kst(2026, 12, 19, 18), kst(2026, 12, 20, 9))
+
+
+# 네이버 스마트플레이스 '예약 상세정보' 항목 구조 (2026-11 화면 기준. 개인정보는 가상 값)
+NAVER_DETAIL = """
+예약 상세정보
+예약자관리
+확정
+예약자
+이가상
+전화번호
+010-1111-2222
+예약번호
+1300000001
+예약유형
+일반
+예약내역
+상품
+[평일한정] 11시 - 17시
+이용일
+2026. 11. 18.(수)
+수량
+평일 1
+결제정보
+결제상태
+결제완료
+결제금액
+70,000원
+"""
+
+
+def test_parse_naver_detail_layout():
+    b = parse_mail("naver", "[네이버 예약] 새 예약", NAVER_DETAIL, {}, KST, resolve)
+    assert (b.external_id, b.name, b.phone, b.amount) == ("1300000001", "이가상", "01011112222", 70000)
+    assert (b.start, b.end) == (kst(2026, 11, 18, 11), kst(2026, 11, 18, 17))
+
+
+@pytest.mark.parametrize("product,start,end", [
+    ("[11월/올나잇] 18시 - 익일 9시", kst(2026, 11, 18, 18), kst(2026, 11, 19, 9)),
+    ("[11월/올데이] 11시 - 24시", kst(2026, 11, 18, 11), kst(2026, 11, 19, 0)),
+])
+def test_period_from_product_time(product, start, end):
+    from app.sources.text import parse_period_from_product
+    assert parse_period_from_product("2026. 11. 18.(수)", product, KST) == (start, end)
+
+
+def test_period_from_product_without_time_is_error():
+    body = NAVER_DETAIL.replace("[평일한정] 11시 - 17시", "[12월&1월] 크리스마스&신년회 시즌 Open")
+    with pytest.raises(ParseError):
+        parse_mail("naver", "[네이버 예약] 새 예약", body, {}, KST, resolve)
+
+
+def test_label_does_not_match_longer_word():
+    assert label_value("예약자관리\n예약자\n이가상", ["예약자"]) == "이가상"

@@ -19,7 +19,7 @@ from ..db import Store
 from ..models import RawBooking
 from ..parser import normalize_phone
 from . import FetchResult
-from .text import label_value, parse_amount, parse_period, strip_html
+from .text import label_value, parse_amount, parse_period, parse_period_from_product, strip_html
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ DEFAULT_LABELS = {
     "reservation_no": ["예약번호", "예약 번호", "주문번호"],
     "name": ["예약자명", "예약자", "이용자명", "이용자", "고객명", "이름"],
     "phone": ["예약자 연락처", "연락처", "전화번호", "휴대폰번호", "휴대폰"],
-    "period": ["이용일시", "이용 일시", "예약일시", "예약 일시", "이용시간", "예약내용", "일시"],
+    "period": ["이용일시", "이용 일시", "예약일시", "예약 일시", "이용시간", "예약내용", "이용일", "일시"],
     "product": ["상품명", "예약상품", "예약공간", "상품", "공간명", "공간"],
     "amount": ["결제금액", "결제 금액", "총 금액", "금액"],
 }
@@ -55,7 +55,7 @@ def parse_mail(channel: str, subject: str, body: str, ch_cfg: dict, tz: ZoneInfo
     phone = normalize_phone(label_value(text, labels["phone"]) or "")
     product = label_value(text, labels["product"])
     amount = parse_amount(label_value(text, labels["amount"]))
-    period = parse_period(period_text, tz) if period_text else None
+    period = (parse_period(period_text, tz) or parse_period_from_product(period_text, product, tz)) if period_text else None
     cancelled = any(k in subject for k in ch_cfg.get("cancel_keywords", DEFAULT_CANCEL_KEYWORDS)) or any(
         k in text for k in ch_cfg.get("cancel_body_keywords", DEFAULT_CANCEL_BODY_KEYWORDS))
 
