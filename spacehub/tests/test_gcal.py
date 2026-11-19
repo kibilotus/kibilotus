@@ -91,3 +91,12 @@ def test_example_config_google_calendars_and_legacy(cfg):
     cfg.sources = {"google_calendar": {"enabled": True, "calendar_id": "c", "service_account_file": "sa.json"}}
     assert cfg.google_calendars() == [{"name": "google_calendar", "auth": "service_account", "enabled": True,
                                        "calendar_id": "c", "service_account_file": "sa.json"}]
+
+
+def test_skip_host_blocks_for_naver_bookings():
+    """2026-11 실제 구독 캘린더: 사장님이 네이버 예약 날짜를 막아 둔 '이름(네이버예약)' 일정과 제목 없는 일정이 섞여 있다."""
+    cfg = {"name": "spacecloud_gcal", "channel": "spacecloud", "calendar_id": "x", "skip_keywords": ["네이버예약"]}
+    client = FakeClient([ev("u1", summary="", start=kst(2026, 11, 20, 0), end=kst(2026, 11, 21, 0)),
+                         ev("u2", summary="이가상(네이버예약)", start=kst(2026, 11, 23, 12), end=kst(2026, 11, 24, 0))])
+    bookings = GoogleCalendarSource(cfg, KST, resolve, client=client).fetch(NOW).bookings
+    assert [(b.external_id, b.name, b.phone) for b in bookings] == [("u1", None, None)]

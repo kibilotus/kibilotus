@@ -66,6 +66,8 @@ sources:
       auth: oauth
       token_file: google-token.json
       lookahead_days: 60
+      # 스페이스클라우드에서 네이버 예약 날짜를 직접 막아 둔 일정('홍길동(네이버예약)')은 네이버 예약과 중복이므로 건너뜀
+      skip_keywords: [네이버예약]
     # (선택) 전화·현장 예약을 적어 두는 캘린더를 '직접 예약'으로 가져오기
     - name: direct_gcal
       label: 직접 예약 캘린더
