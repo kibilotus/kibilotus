@@ -16,6 +16,7 @@ class CalendarEvent:
     start: datetime
     end: datetime
     created: datetime
+    ical_uid: str = ""  # 구독 캘린더(iCal URL)에서 온 일정이면 원래 iCal 의 UID 가 그대로 들어 있다
 
 
 @dataclass

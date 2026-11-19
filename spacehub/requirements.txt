@@ -3,9 +3,10 @@ uvicorn>=0.29
 requests>=2.31
 PyYAML>=6.0
 icalendar>=5.0
-# 구글 캘린더 소스를 켤 때만 필요
+# 구글 캘린더 연동 (스페이스클라우드 구독 캘린더 등)
 google-api-python-client>=2.100
 google-auth>=2.23
+google-auth-oauthlib>=1.2
 # 테스트
 pytest>=8.0
 httpx>=0.27

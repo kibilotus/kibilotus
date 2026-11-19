@@ -105,3 +105,14 @@ def test_index_served(client):
     c, _ = client
     res = c.get("/")
     assert res.status_code == 200 and "예약 관리" in res.text
+
+
+def test_channels_lists_sources(client, cfg):
+    c, _ = client
+    cfg.sources = {"google_calendars": [{"name": "spacecloud_gcal", "label": "스페이스클라우드 구독", "enabled": True,
+                                         "channel": "spacecloud", "calendar_id": "abc@import.calendar.google.com"}]}
+    srcs = {s["name"]: s for s in c.get("/api/channels").json()["sources"]}
+    g = srcs["spacecloud_gcal"]
+    assert (g["channels"], g["enabled"], g["subscribed"], g["label"]) == (
+        ["spacecloud"], True, True, "구글 캘린더 (스페이스클라우드 구독)")
+    assert srcs["email"]["enabled"] is False

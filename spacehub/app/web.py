@@ -188,13 +188,23 @@ def create_app(engine: Engine) -> FastAPI:
     # ---------- 채널 ----------
     @app.get("/api/channels", dependencies=[Depends(auth)])
     def channels():
+        em, ic = cfg.source("email"), cfg.source("spacecloud_ical")
+        sources = [
+            {"name": "email", "kind": "email", "label": f"예약 알림 메일 ({em.get('user') or '-'})",
+             "channels": list(em.get("channels", {}).keys()), "enabled": bool(em.get("enabled"))},
+            {"name": "spacecloud_ical", "kind": "ical", "label": "캘린더 주소 직접 읽기",
+             "channels": ["spacecloud"], "enabled": bool(ic.get("enabled") and ic.get("url"))},
+        ]
+        for gc in cfg.google_calendars():
+            sources.append({
+                "name": gc.get("name", "google_calendar"), "kind": "gcal",
+                "label": f"구글 캘린더 ({gc.get('label') or gc.get('calendar_id', '-')})",
+                "channels": [gc.get("channel", "direct")], "enabled": bool(gc.get("enabled")),
+                # 'URL로 추가'한 구독 캘린더는 구글이 몇 시간마다 다시 받아온다
+                "subscribed": str(gc.get("calendar_id", "")).endswith("@import.calendar.google.com"),
+            })
         return {
-            "sources": {
-                "email": {"enabled": bool(cfg.source("email").get("enabled")), "user": cfg.source("email").get("user"),
-                          "channels": list(cfg.source("email").get("channels", {}).keys())},
-                "spacecloud_ical": {"enabled": bool(cfg.source("spacecloud_ical").get("enabled"))},
-                "google_calendar": {"enabled": bool(cfg.source("google_calendar").get("enabled"))},
-            },
+            "sources": sources,
             "sync": store.sync_statuses(),
             "feed_url": f"{cfg.public_url.rstrip('/')}/feed/{cfg.feed_token}.ics" if cfg.feed_token else None,
         }

@@ -22,11 +22,21 @@ def build_sources(cfg: Config, store: Store) -> list[Source]:
     if ic.get("enabled") and ic.get("url"):
         sources.append(ICalSource("spacecloud_ical", "spacecloud", ic["url"], cfg.timezone, cfg.resolve_room,
                                   int(ic.get("lookahead_days", 60))))
-    gc = cfg.source("google_calendar")
-    if gc.get("enabled"):
+    for gc in cfg.google_calendars():
+        if not gc.get("enabled"):
+            continue
         from .sources.gcal_source import GoogleCalendarSource  # 구글 라이브러리는 쓸 때만 불러온다
 
-        sources.append(GoogleCalendarSource(gc, cfg.resolve_room))
+        try:
+            sources.append(GoogleCalendarSource(gc, cfg.timezone, cfg.resolve_room))
+        except Exception as e:  # 토큰 파일이 없는 등 설정 문제: 나머지 채널은 계속 돈다
+            log.error("구글 캘린더 %s 를 열지 못했어요: %s", gc.get("name"), e)
+            if isinstance(e, FileNotFoundError):
+                msg = (f"설정 확인 필요: 구글 로그인 토큰 파일({gc.get('token_file', 'google-token.json')})이 없어요. "
+                       "python -m app.main google-login 으로 만들어 서버에 올려주세요.")
+            else:
+                msg = f"설정 확인 필요: {e}"
+            store.set_sync(gc.get("name", "google_calendar"), datetime.now(cfg.timezone), error=msg[:300])
     return sources
 
 

@@ -5,7 +5,6 @@ iCal 은 기간 내 전체 목록을 주므로, 목록에서 사라진 예약은
 """
 from __future__ import annotations
 
-import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -13,11 +12,8 @@ import requests
 from icalendar import Calendar
 
 from ..models import RawBooking
-from ..parser import _name_from_title, normalize_phone
 from . import FetchResult
-from .text import strip_html
-
-RESERVATION_NO_RE = re.compile(r"예약\s*번호\s*[:：#]?\s*([A-Za-z0-9\-]+)")
+from .event_parse import raw_from_event
 
 
 def parse_ics(data: bytes | str, channel: str, tz: ZoneInfo, resolve_room) -> list[RawBooking]:
@@ -30,20 +26,10 @@ def parse_ics(data: bytes | str, channel: str, tz: ZoneInfo, resolve_room) -> li
         s, e = start.dt, end.dt
         if s.tzinfo is None:
             s, e = s.replace(tzinfo=tz), e.replace(tzinfo=tz)
-        summary = str(ev.get("SUMMARY", ""))
-        desc = strip_html(str(ev.get("DESCRIPTION", "")))
-        both = f"{summary}\n{desc}"
-        m = RESERVATION_NO_RE.search(both)
-        out.append(RawBooking(
-            channel=channel,
-            external_id=m.group(1) if m else str(ev.get("UID")),
-            status="cancelled" if str(ev.get("STATUS", "")).upper() == "CANCELLED" else "confirmed",
-            name=_name_from_title(summary) or _name_from_title(desc),
-            phone=normalize_phone(both),
-            product=summary or None,
-            room=resolve_room(summary, desc),
-            start=s.astimezone(tz),
-            end=e.astimezone(tz),
+        out.append(raw_from_event(
+            channel=channel, uid=str(ev.get("UID")), summary=str(ev.get("SUMMARY", "")),
+            description=str(ev.get("DESCRIPTION", "")), start=s, end=e,
+            cancelled=str(ev.get("STATUS", "")).upper() == "CANCELLED", tz=tz, resolve_room=resolve_room,
         ))
     return out
 

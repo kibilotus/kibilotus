@@ -45,6 +45,14 @@ class Config:
     def source(self, name: str) -> dict:
         return self.sources.get(name) or {}
 
+    def google_calendars(self) -> list[dict]:
+        """sources.google_calendars 목록. 예전 형식(sources.google_calendar 하나)도 받는다."""
+        items = list(self.sources.get("google_calendars") or [])
+        legacy = self.source("google_calendar")
+        if legacy:
+            items.append({"name": "google_calendar", "auth": "service_account", **legacy})
+        return items
+
     def resolve_room(self, *texts: str | None) -> str:
         """공간명/상품명에 들어 있는 키워드로 공간을 정한다. 못 찾으면 첫 번째 공간."""
         joined = " ".join(t for t in texts if t)
