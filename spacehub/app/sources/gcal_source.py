@@ -25,6 +25,7 @@ class GoogleCalendarSource:
         # 제목에 이 단어가 있는 일정은 예약으로 가져오지 않는다.
         # 예: 사장님이 네이버 예약 날짜를 스페이스클라우드에서 막아 둔 '홍길동(네이버예약)' 일정 -> 네이버 예약과 중복
         self.skip_keywords = list(cfg.get("skip_keywords") or [])
+        self.skip_untitled = bool(cfg.get("skip_untitled", False))  # 제목 없는 일정 = 사장님이 수기로 막아 둔 날
         if client is None:
             creds = load_credentials(auth=cfg.get("auth", "oauth"), token_file=cfg.get("token_file", "google-token.json"),
                                      service_account_file=cfg.get("service_account_file"))
@@ -39,5 +40,6 @@ class GoogleCalendarSource:
                            tz=self.tz, resolve_room=self.resolve_room)
             for ev in self.client.fetch(*window)
             if not any(k in (ev.summary or "") for k in self.skip_keywords)
+            and not (self.skip_untitled and not (ev.summary or "").strip())
         ]
         return FetchResult(bookings=bookings, snapshot_window=window)

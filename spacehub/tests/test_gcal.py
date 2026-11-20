@@ -100,3 +100,9 @@ def test_skip_host_blocks_for_naver_bookings():
                          ev("u2", summary="이가상(네이버예약)", start=kst(2026, 11, 23, 12), end=kst(2026, 11, 24, 0))])
     bookings = GoogleCalendarSource(cfg, KST, resolve, client=client).fetch(NOW).bookings
     assert [(b.external_id, b.name, b.phone) for b in bookings] == [("u1", None, None)]
+
+
+def test_skip_untitled_blocks():
+    cfg = {"name": "spacecloud_gcal", "channel": "spacecloud", "calendar_id": "x", "skip_untitled": True}
+    client = FakeClient([ev("u1", summary=""), ev("u2", summary="이가상 / 루프탑", id_="g2")])
+    assert [b.external_id for b in GoogleCalendarSource(cfg, KST, resolve, client=client).fetch(NOW).bookings] == ["u2"]

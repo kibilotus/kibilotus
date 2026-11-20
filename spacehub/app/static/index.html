@@ -261,8 +261,8 @@ const md = s => { const x = P(s); return `${x.m}/${x.d}(${WD[x.wd]})`; };
 const won = n => n == null ? "" : `₩${Number(n).toLocaleString()}`;
 const maskPhone = p => p ? `${p.slice(0,3)}-${p.slice(3,-4)}-${p.slice(-4)}` : "";
 const chTag = c => `<span class="ch c-${c}">${esc(META.channels[c] || c)}</span>`;
-const sendCls = s => ({sent:"ok", skipped:"off", retry:"warn", failed:"bad", invalid:"bad"}[s] || "off");
-const SEND_TXT = {sent:"성공", skipped:"건너뜀", retry:"재시도 중", failed:"실패", invalid:"발송 불가"};
+const sendCls = s => ({sent:"ok", skipped:"off", retry:"warn", waiting:"warn", failed:"bad", invalid:"bad"}[s] || "off");
+const SEND_TXT = {sent:"성공", skipped:"건너뜀", retry:"재시도 중", waiting:"연락처 대기", failed:"실패", invalid:"발송 불가"};
 const ruleName = id => (RULES.find(r => r.id === id) || {}).name || id;
 const ago = s => { if (!s) return "기록 없음"; const m = Math.round((Date.now() - d(s)) / 60000); return m < 1 ? "방금" : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m/60)}시간 전` : md(s); };
 

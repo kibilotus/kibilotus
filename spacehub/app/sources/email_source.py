@@ -27,7 +27,8 @@ DEFAULT_LABELS = {
     "reservation_no": ["예약번호", "예약 번호", "주문번호"],
     "name": ["예약자명", "예약자", "이용자명", "이용자", "고객명", "이름"],
     "phone": ["예약자 연락처", "연락처", "전화번호", "휴대폰번호", "휴대폰"],
-    "period": ["이용일시", "이용 일시", "예약일시", "예약 일시", "이용시간", "예약내용", "이용일", "일시"],
+    # '예약신청 일시'(신청한 시각)는 이용 일시가 아니므로 넣지 않는다
+    "period": ["이용일시", "이용 일시", "예약일시", "예약 일시", "이용시간", "예약내용", "이용일"],
     "product": ["상품명", "예약상품", "예약공간", "상품", "공간명", "공간"],
     "amount": ["결제금액", "결제 금액", "총 금액", "금액"],
 }
@@ -36,6 +37,8 @@ DEFAULT_CANCEL_KEYWORDS = ["취소"]
 # 예약완료 메일 본문에도 "취소하기를 눌러 취소환불처리..." 같은 안내가 있으므로 '취소' 한 단어로 판단하면 안 된다.
 DEFAULT_CANCEL_BODY_KEYWORDS = ["예약이 취소되었습니다", "예약취소가 완료", "예약 취소가 완료"]
 DEFAULT_IGNORE_KEYWORDS = ["리뷰", "정산", "문의"]
+# 사장님이 직접 보낸 메일의 채널 판단 단어 (앞에 있는 채널부터 확인)
+DEFAULT_FORWARD_KEYWORDS = {"spacecloud": ["스페이스클라우드", "spacecloud"], "naver": ["네이버", "naver"]}
 
 
 class ParseError(ValueError):
@@ -55,7 +58,14 @@ def parse_mail(channel: str, subject: str, body: str, ch_cfg: dict, tz: ZoneInfo
     phone = normalize_phone(label_value(text, labels["phone"]) or "")
     product = label_value(text, labels["product"])
     amount = parse_amount(label_value(text, labels["amount"]))
-    period = (parse_period(period_text, tz) or parse_period_from_product(period_text, product, tz)) if period_text else None
+    amount_text = label_value(text, labels["amount"])
+    period = (parse_period(period_text, tz) or parse_period_from_product(period_text, product, tz, amount_text)) if period_text else None
+    if period_text and not period and product:
+        # 시간이 상품명에도 결제금액에도 없는 상품(예: 시즌 상품)은 설정의 product_hours 로 보완
+        # 예) product_hours: {"크리스마스": "12시-24시"}
+        hours = next((h for k, h in ch_cfg.get("product_hours", {}).items() if k in product), None)
+        if hours:
+            period = parse_period_from_product(period_text, None, tz, f"{hours}")
     cancelled = any(k in subject for k in ch_cfg.get("cancel_keywords", DEFAULT_CANCEL_KEYWORDS)) or any(
         k in text for k in ch_cfg.get("cancel_body_keywords", DEFAULT_CANCEL_BODY_KEYWORDS))
 
@@ -63,8 +73,10 @@ def parse_mail(channel: str, subject: str, body: str, ch_cfg: dict, tz: ZoneInfo
         if cancelled or "예약" in subject:
             raise ParseError("예약번호와 이용일시를 찾지 못했어요")
         return None
-    if period_text and not period:
+    if period_text and not period and not reservation_no:
         raise ParseError(f"이용일시를 해석하지 못했어요: {period_text[:60]}")
+    # 예약번호는 있는데 시간을 모르면(예: 예약 상세 화면을 붙여넣었는데 상품명에 시간이 없음) 시간 없이 돌려준다.
+    # 같은 예약번호의 예약이 이미 있으면 연락처·이름만 채워지고, 없으면 저장되지 않고 동기화 상태에 표시된다.
 
     if reservation_no:
         external_id = reservation_no.split()[0]
@@ -72,7 +84,8 @@ def parse_mail(channel: str, subject: str, body: str, ch_cfg: dict, tz: ZoneInfo
         external_id = "h-" + hashlib.sha1(f"{name}|{period[0].isoformat()}".encode()).hexdigest()[:12]
 
     if name:
-        name = name.split()[0]
+        name = name.split()[0].removesuffix("님")  # 네이버 메일: '최*정님'
+
     return RawBooking(
         channel=channel,
         external_id=external_id,
@@ -117,8 +130,21 @@ class EmailSource:
         self.tz = tz
         self.resolve_room = resolve_room
 
-    def _channel_for(self, sender: str) -> str | None:
+    def _channel_for(self, sender: str, subject: str, body: str) -> str | None:
+        """어느 채널의 예약 메일인지. 모르는 발신자의 메일은 None (읽지 않음).
+
+        - 플랫폼이 보낸 메일: 채널별 발신 주소(from)로 판단
+        - 사장님이 직접 보낸 메일(forwarders): 알림 메일 전달(Fwd), 또는 예약 상세 화면 내용을 붙여넣은 메일.
+          제목, 없으면 본문의 단어로 채널을 정한다. 아무 단어도 없으면 forward_default_channel.
+        """
         sender = sender.lower()
+        if sender in [a.lower() for a in self.cfg.get("forwarders", [])]:
+            keywords = self.cfg.get("forward_channel_keywords", DEFAULT_FORWARD_KEYWORDS)
+            for text in (subject, body):
+                for channel, words in keywords.items():
+                    if any(w.lower() in text.lower() for w in words):
+                        return channel
+            return self.cfg.get("forward_default_channel", "naver")
         for channel, ch_cfg in self.cfg.get("channels", {}).items():
             if any(addr.lower() in sender for addr in ch_cfg.get("from", [])):
                 return channel
@@ -154,11 +180,12 @@ class EmailSource:
             received = parsedate_to_datetime(msg["Date"]).astimezone(self.tz).isoformat(timespec="seconds")
         except Exception:
             received = None
-        channel = self._channel_for(sender)
+        body = message_text(msg)
+        channel = self._channel_for(sender, subject, body)
         if channel is None:  # 예약 플랫폼 메일이 아니면 건너뛰되 기록은 남기지 않는다 (나중에 설정을 고치면 다시 읽도록)
             return
         try:
-            raw = parse_mail(channel, subject, message_text(msg), self.cfg["channels"][channel], self.tz, self.resolve_room)
+            raw = parse_mail(channel, subject, body, self.cfg.get("channels", {}).get(channel, {}), self.tz, self.resolve_room)
         except ParseError as e:
             log.warning("예약 메일 해석 실패 [%s] %s: %s", channel, subject, e)
             result.errors.append(f"{subject}: {e}")

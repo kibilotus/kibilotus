@@ -90,20 +90,31 @@ def parse_period(text: str, tz: ZoneInfo) -> tuple[datetime, datetime] | None:
     return (start, end) if end > start else None
 
 
-def parse_period_from_product(date_text: str, product: str | None, tz: ZoneInfo) -> tuple[datetime, datetime] | None:
-    """이용일에 날짜만 있을 때 상품명의 시간으로 기간을 만든다.
+HOUR_RANGE_RE = re.compile(r"(\d{1,2})\s*시\s*[-~–]\s*(익일\s*)?(\d{1,2})\s*시")
 
-    네이버 예약은 이용일이 '2026. 11. 18.(수)' 처럼 날짜뿐이고, 시간은 상품명 '[평일한정] 11시 - 17시' 에 있다.
+
+def parse_period_from_product(date_text: str, product: str | None, tz: ZoneInfo, *more: str | None) -> tuple[datetime, datetime] | None:
+    """이용일에 날짜만 있을 때 상품명(없으면 결제금액의 옵션 등)에 적힌 'N시 - M시' 로 기간을 만든다.
+
+    네이버 예약은 이용일시가 '2026.12.27.(일)' 처럼 날짜뿐이고, 시간은
+    - 상품명: '[평일한정] 11시 - 17시', '[11월/올나잇] 18시 - 익일 9시'
+    - 또는 결제금액 옵션: 'Xmas & New Year(1) 200,000원 + 체크아웃시간 동일[12시-24시](1) 0원'
+    에 있다. 'N시'처럼 '시'가 붙은 숫자만 보므로 '[12월&1월]' 같은 머리말이나 금액은 시간으로 읽지 않는다.
     """
     d = DATE_RE.search(date_text or "")
-    if not d or not product:
+    if not d:
         return None
-    times = re.sub(r"\[[^\]]*\]", " ", product)  # '[11월/올나잇]' 같은 머리말 제거 (안의 숫자가 시간으로 읽히지 않게)
-    return parse_period(f"{d.group(0)} {times}", tz)
+    for text in (product, *more):
+        m = HOUR_RANGE_RE.search(text or "")
+        if m:
+            return parse_period(f"{d.group(0)} {m.group(1)}시 ~ {m.group(2) or ''}{m.group(3)}시", tz)
+    return None
 
 
 def parse_amount(text: str | None) -> int | None:
     if not text:
         return None
+    if "=" in text:  # 'A 200,000원 + B 0원 = 200,000원' -> 합계
+        text = text.rsplit("=", 1)[1]
     m = AMOUNT_RE.search(text) or re.search(r"(\d[\d,]{2,})", text)
     return int(m.group(1).replace(",", "")) if m else None

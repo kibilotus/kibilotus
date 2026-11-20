@@ -93,7 +93,10 @@ def test_parse_mail_errors_when_unreadable():
     with pytest.raises(ParseError):
         parse_mail("naver", "새 예약이 들어왔어요", "양식이 바뀐 본문", {}, KST, resolve)
     with pytest.raises(ParseError):
-        parse_mail("naver", "새 예약", "예약번호: 1\n이용일시: 내일 오후", {}, KST, resolve)
+        parse_mail("naver", "새 예약", "이용일시: 내일 오후", {}, KST, resolve)
+    # 예약번호가 있으면 시간을 몰라도 기존 예약에 연락처를 채울 수 있게 시간 없이 돌려준다
+    b = parse_mail("naver", "새 예약", "예약번호: 1\n이용일시: 내일 오후", {}, KST, resolve)
+    assert (b.external_id, b.start) == ("1", None)
 
 
 def test_parse_mail_custom_labels():
@@ -227,10 +230,10 @@ def test_period_from_product_time(product, start, end):
     assert parse_period_from_product("2026. 11. 18.(수)", product, KST) == (start, end)
 
 
-def test_period_from_product_without_time_is_error():
+def test_period_from_product_without_time_returns_merge_only():
     body = NAVER_DETAIL.replace("[평일한정] 11시 - 17시", "[12월&1월] 크리스마스&신년회 시즌 Open")
-    with pytest.raises(ParseError):
-        parse_mail("naver", "[네이버 예약] 새 예약", body, {}, KST, resolve)
+    b = parse_mail("naver", "[네이버 예약] 새 예약", body, {}, KST, resolve)
+    assert (b.external_id, b.phone, b.start) == ("1300000001", "01011112222", None)
 
 
 def test_label_does_not_match_longer_word():

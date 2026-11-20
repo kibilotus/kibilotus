@@ -32,9 +32,13 @@ def notify(cfg: Config, store: Store, sender: Sender, now: datetime, seed: bool 
                 store.record_send(key, status="skipped", attempted=False, **meta)
                 continue
             if booking.errors:
+                # 연락처가 나중에 들어올 수 있다 (예: 네이버 메일에는 없고 사장님이 상세 내용을 따로 보냄).
+                # 최종 실패로 두지 않고 '정보 대기'로 기록해 다음 주기에 다시 본다. 이용이 끝나면 대상에서 빠진다.
                 reason = ", ".join(booking.errors)
-                log.warning("발송 불가 booking=%s: %s", booking.id, reason)
-                store.record_send(key, status="invalid", error=reason, attempted=False, **meta)
+                prev = store.get_send(key)
+                if not prev or prev["status"] != "waiting":
+                    log.warning("발송 대기 booking=%s: %s", booking.id, reason)
+                    store.record_send(key, status="waiting", error=reason, attempted=False, **meta)
                 continue
             if not rule.solapi_template_id and not cfg.dry_run:
                 store.record_send(key, status="invalid", error="알림톡 템플릿 ID 없음", attempted=False, **meta)

@@ -30,11 +30,18 @@ sources:
     host: imap.gmail.com
     user: studiobuddy.booking@gmail.com
     lookback_days: 14
+    # 사장님이 직접 이 메일함으로 보내는 주소 (알림 메일 전달, 예약 상세 화면 붙여넣기)
+    # 여기 적힌 주소에서 온 메일만 '사장님이 보낸 예약'으로 읽습니다. 다른 사람이 보낸 메일은 무시합니다.
+    forwarders: [studiobuddy.booking@gmail.com, owner@naver.com]
+    forward_default_channel: naver     # 제목·본문에 '네이버'/'스페이스클라우드'가 없을 때
     channels:
       naver:
-        from: [naver.com]               # TODO: 실제 예약 알림 메일 발신 주소로 좁히기 (샘플 확인 후)
+        from: [naver.com]               # TODO: 실제 예약 알림 메일 발신 주소로 좁히기
         cancel_keywords: [취소]
         ignore_keywords: [리뷰, 정산, 문의, 광고]
+        # 이용 시간이 상품명·결제금액 어디에도 없는 상품의 시간 (상품명에 들어 있는 단어: 시간)
+        product_hours:
+          크리스마스: "12시-24시"
         # labels 로 항목 이름을 바꿀 수 있습니다. 생략하면 기본값(예약번호/예약자명/연락처/이용일시/상품명/결제금액 등)
         # labels:
         #   period: [이용일시, 예약일시]
@@ -68,6 +75,8 @@ sources:
       lookahead_days: 60
       # 스페이스클라우드에서 네이버 예약 날짜를 직접 막아 둔 일정('홍길동(네이버예약)')은 네이버 예약과 중복이므로 건너뜀
       skip_keywords: [네이버예약]
+      # 제목 없는 일정도 사장님이 네이버 예약 날짜를 수기로 막아 둔 것이므로 건너뜀
+      skip_untitled: true
     # (선택) 전화·현장 예약을 적어 두는 캘린더를 '직접 예약'으로 가져오기
     - name: direct_gcal
       label: 직접 예약 캘린더

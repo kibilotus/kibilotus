@@ -45,12 +45,17 @@ def run_sync(store: Store, sources: list[Source], now: datetime) -> None:
         try:
             result = src.fetch(now)
             snapshot = src.name if result.snapshot_window else None
-            seen = set()
+            seen, unsaved = set(), []
             for raw in result.bookings:
                 if store.upsert_booking(raw, now, snapshot_src=snapshot) is not None:
                     seen.add((raw.channel, raw.external_id))
+                elif raw.status == "confirmed":
+                    unsaved.append(raw.external_id)  # 처음 보는 예약인데 이용 시간을 모름
             cancelled = store.cancel_missing(src.name, seen, result.snapshot_window, now) if snapshot else 0
-            error = f"{len(result.errors)}건 해석 실패" if result.errors else None
+            problems = [f"{len(result.errors)}건 해석 실패"] if result.errors else []
+            if unsaved:
+                problems.append(f"이용 시간을 몰라 새 예약으로 만들지 못했어요 (예약번호 {', '.join(unsaved[:5])})")
+            error = " / ".join(problems) or None
             store.set_sync(src.name, now, count=len(result.bookings), error=error)
             log.info("동기화 %s: %d건 반영, %d건 취소 처리", src.name, len(seen), cancelled)
         except Exception as e:  # 한 채널이 실패해도 나머지 채널과 알림은 계속 돈다

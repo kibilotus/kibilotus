@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS sends (
     dedupe_key   TEXT PRIMARY KEY,
     booking_id   INTEGER NOT NULL,
     rule_id      TEXT NOT NULL,
-    status       TEXT NOT NULL,           -- sent | retry | failed | invalid | skipped
+    status       TEXT NOT NULL,           -- sent | retry | waiting | failed | invalid | skipped
     attempts     INTEGER NOT NULL DEFAULT 0,
     last_error   TEXT,
     updated_at   TEXT NOT NULL
@@ -135,6 +135,8 @@ class Store:
             return cur.lastrowid
 
         updates = {f: v for f, v in values.items() if v not in (None, "")}
+        if "*" in (updates.get("name") or "") and row["name"] and "*" not in row["name"]:
+            del updates["name"]  # 네이버 메일의 가려진 이름이 수기로 보낸 전체 이름을 덮어쓰지 않게
         if snapshot_src:
             updates["snapshot_src"] = snapshot_src
         if raw.status != row["status"]:
